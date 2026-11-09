@@ -39,6 +39,32 @@ function SectionTitle({ children }: { children: ReactNode }) {
   return <h2 className="text-xs font-semibold uppercase tracking-wider text-turf-300">{children}</h2>;
 }
 
+/** Small (i) in a card's title row; tapping opens a short explainer. */
+function InfoTip({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        aria-label="More info"
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-6 w-6 items-center justify-center rounded-full border border-turf-500 text-[11px] font-semibold text-turf-300 active:bg-turf-600"
+      >
+        i
+      </button>
+      {open && (
+        <>
+          {/* tap anywhere outside to dismiss */}
+          <div className="fixed inset-0" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-7 z-10 w-56 rounded-xl border border-turf-600 bg-turf-700 p-3 text-xs leading-relaxed text-turf-200 shadow-xl">
+            {children}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function DiffBadge({ diff, u }: { diff: number; u: 'yd' | 'm' }) {
   const r = Math.round(toDisplayYards(diff, u));
   const abs = Math.abs(r);
@@ -285,7 +311,19 @@ export function PlayScreen() {
                   style={{ maxHeight: sheetMax ?? undefined }}
                 >
                 <section className="rounded-2xl bg-turf-800 p-4">
-                  <SectionTitle>Distance to pin</SectionTitle>
+                  <div className="flex items-center justify-between">
+                    <SectionTitle>Distance to pin</SectionTitle>
+                    <InfoTip>
+                      <p>
+                        A slope-adjusted laser reading is perfect here — the app treats it as the
+                        number to cover.
+                      </p>
+                      <p className="mt-1">
+                        Your shot has to cover this distance in the air (carry) — rollout on the
+                        ground is not counted.
+                      </p>
+                    </InfoTip>
+                  </div>
                   <div className="mt-2 flex items-center justify-between gap-1.5">
                     <StepBtn label="−5" onClick={() => setDisp(disp - 5)} disabled={disp <= 0} />
                     <StepBtn label="−1" onClick={() => setDisp(disp - 1)} disabled={disp <= 0} />
@@ -311,7 +349,20 @@ export function PlayScreen() {
                 </section>
 
                 <section className="rounded-2xl bg-turf-800 p-4">
-                  <SectionTitle>Wind</SectionTitle>
+                  <div className="flex items-center justify-between">
+                    <SectionTitle>Wind</SectionTitle>
+                    <InfoTip>
+                      <p>
+                        Drag the dial — the arrow points where the wind blows. Up = toward the green
+                        (helping).
+                      </p>
+                      <p className="mt-1">
+                        {sys === 'metric'
+                          ? '5 km/h is how wind feels on your face at walking pace. 10–15 km/h is jogging. 25–30 km/h is a full sprint.'
+                          : '3 mph is how wind feels on your face at walking pace. 6–9 mph is jogging. 16–19 mph is a full sprint.'}
+                      </p>
+                    </InfoTip>
+                  </div>
                   <div className="mt-2 flex items-center gap-4">
                     <WindControl />
                     <div className="flex-1">
@@ -340,7 +391,17 @@ export function PlayScreen() {
                 </section>
 
                 <section className="rounded-2xl bg-turf-800 p-4">
-                  <SectionTitle>Front-back slope</SectionTitle>
+                  <div className="flex items-center justify-between">
+                    <SectionTitle>Front-back slope</SectionTitle>
+                    <InfoTip>
+                      <p>The tilt under your feet.</p>
+                      <p className="mt-1">
+                        An uphill stance tilts you back and adds loft — the shot flies shorter. A
+                        downhill stance delofts — longer. A laser can't see your lie, so set this
+                        whenever the ground tilts where you're standing.
+                      </p>
+                    </InfoTip>
+                  </div>
                   <div className="mt-2">
                     <SlopeControl
                       value={slopeDeg}
@@ -353,7 +414,20 @@ export function PlayScreen() {
                 </section>
 
                 <section className="rounded-2xl bg-turf-800 p-4">
-                  <SectionTitle>Miss preference</SectionTitle>
+                  <div className="flex items-center justify-between">
+                    <SectionTitle>Miss preference</SectionTitle>
+                    <InfoTip>
+                      <p>
+                        Where you'd rather miss on an imperfect strike — trouble long of the green →
+                        Undershoot; bunker guarding the front → Overshoot. The other side is
+                        penalized by the Overshoot penalty in Settings.
+                      </p>
+                      <p className="mt-1">
+                        Example: at a 2× penalty, flying 5 yd past (score 10) loses to landing 9 yd
+                        short (score 9); at 1.5× the past shot wins (7.5 vs 9).
+                      </p>
+                    </InfoTip>
+                  </div>
                   <div className="mt-2 flex rounded-xl bg-turf-700 p-1">
                     {(['short', 'long'] as const).map((pref) => (
                       <button
