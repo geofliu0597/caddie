@@ -62,7 +62,7 @@ export function SlopeControl({
         type="range"
         min={-30}
         max={30}
-        step={1}
+        step={5}
         value={deg}
         onChange={(e) => onChange(Number(e.target.value))}
         className="mt-3 w-full"

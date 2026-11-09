@@ -144,7 +144,9 @@ export function normalizeState(input: unknown): AppState {
       pinDistance: clamp(finiteOr(c.pinDistance, base.conditions.pinDistance), 0, 400),
       windSpeed: clamp(finiteOr(c.windSpeed, 0), 0, 40),
       windDir: ((finiteOr(c.windDir, 0) % 360) + 360) % 360,
-      slopeDeg: clamp(finiteOr(c.slopeDeg, 0), -30, 30),
+      // Snap to the slider's 5° notches — values from older saves get pulled
+      // onto one so the slider, graphic and model always agree.
+      slopeDeg: clamp(Math.round(finiteOr(c.slopeDeg, 0) / 5) * 5, -30, 30),
       // Anything other than 'long' (including missing, from older saves) ranks
       // with the default preference: come up short.
       missPref: c.missPref === 'long' ? 'long' : 'short',

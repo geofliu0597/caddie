@@ -21,7 +21,6 @@ import {
 } from '../lib/golf';
 import { WindControl } from './WindControl';
 import { SlopeControl } from './SlopeControl';
-import { DistanceLadder } from './DistanceLadder';
 
 function StepBtn({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
@@ -57,8 +56,6 @@ function DiffBadge({ diff, u }: { diff: number; u: 'yd' | 'm' }) {
   );
 }
 
-const GAP_YD = 6;
-
 export function PlayScreen() {
   const { state, dispatch } = useApp();
   const c = state.conditions;
@@ -77,9 +74,6 @@ export function PlayScreen() {
   const ranked = rankShots(state.shots, c, s);
   const best = ranked[0];
   const { crossRight } = windComponents(c);
-  const noClose = best !== undefined && best.score > GAP_YD;
-  const longestShort = [...ranked].filter((r) => r.diff <= 0).sort((a, b) => b.diff - a.diff)[0];
-  const shortestLong = [...ranked].filter((r) => r.diff > 0).sort((a, b) => a.diff - b.diff)[0];
 
   const slopeDeg = finiteOr(c.slopeDeg, 0);
   const missPref = c.missPref === 'long' ? 'long' : 'short';
@@ -224,30 +218,6 @@ export function PlayScreen() {
             </article>
           )}
 
-          {noClose && best && (
-            <div className="rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3 text-sm text-amber-200">
-              No stock shot flies this number.{' '}
-              {longestShort && (
-                <>
-                  <b>
-                    {longestShort.shot.club} {longestShort.shot.name}
-                  </b>{' '}
-                  comes up {Math.round(-longestShort.diff)} {u} short
-                </>
-              )}
-              {longestShort && shortestLong ? '; ' : ''}
-              {shortestLong && (
-                <>
-                  <b>
-                    {shortestLong.shot.club} {shortestLong.shot.name}
-                  </b>{' '}
-                  flies {Math.round(shortestLong.diff)} {u} past
-                </>
-              )}
-              . Consider an easier or harder swing — or add a shot for this gap in the Arsenal tab.
-            </div>
-          )}
-
           {ranked.length > 1 && (
             <ul className="space-y-2">
               {ranked.slice(1, 6).map((r) => (
@@ -263,8 +233,6 @@ export function PlayScreen() {
               ))}
             </ul>
           )}
-
-          <DistanceLadder shots={state.shots} units={u} />
         </section>
       </div>
 
@@ -291,7 +259,7 @@ export function PlayScreen() {
               <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-turf-600" />
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-semibold tabular-nums text-turf-100">
-                  {disp} {u} · {windDisp} {WIND_UNIT(sys)} · {Math.abs(Math.round(slopeDeg))}°{slopeDeg > 0 ? ' uphill' : slopeDeg < 0 ? ' downhill' : ''}
+                  {disp} {u} · {windDisp} {WIND_UNIT(sys)} · {Math.abs(Math.round(slopeDeg))}°{slopeDeg > 0 ? ' uphill' : slopeDeg < 0 ? ' downhill' : ''} · {missPref === 'long' ? 'Over' : 'Under'}
                 </span>
                 <svg
                   viewBox="0 0 24 24"
