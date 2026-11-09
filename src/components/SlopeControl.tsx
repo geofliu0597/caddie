@@ -1,11 +1,20 @@
 import { finiteOr } from '../lib/golf';
 
 /**
- * Front-to-back slope graphic + slider. The flag marks the green end (left);
- * the line tilts with the slope: uphill (+deg) raises the flag side, downhill
- * (−deg) lowers it — matching how the ground falls from ball to green.
+ * Stance-slope graphic + slider: the tilt of the ground under the golfer's
+ * feet. The line tilts with the slope — uphill (+deg) raises the heels/flag
+ * side, downhill (−deg) lowers it. `effectLabel` (optional) fills the middle
+ * column with what the slope does to the current best shot's carry.
  */
-export function SlopeControl({ value, onChange }: { value: number; onChange: (deg: number) => void }) {
+export function SlopeControl({
+  value,
+  onChange,
+  effectLabel,
+}: {
+  value: number;
+  onChange: (deg: number) => void;
+  effectLabel?: string | null;
+}) {
   const deg = finiteOr(value, 0);
   const dir = deg > 0 ? 'uphill' : deg < 0 ? 'downhill' : 'flat';
   return (
@@ -29,7 +38,13 @@ export function SlopeControl({ value, onChange }: { value: number; onChange: (de
           </g>
           <circle cx="60" cy="38" r="3.5" fill="#a3e635" />
         </svg>
-        <div className="min-w-16 flex-1 text-right">
+        {effectLabel != null && (
+          <div className="min-w-0 flex-1 text-center">
+            <div className="text-sm font-semibold text-turf-50">{effectLabel}</div>
+            <div className="text-[11px] text-turf-400">carry on this shot</div>
+          </div>
+        )}
+        <div className="min-w-16 shrink-0 text-right">
           <div className="text-3xl font-semibold tabular-nums">
             {Math.abs(Math.round(deg))}°
           </div>

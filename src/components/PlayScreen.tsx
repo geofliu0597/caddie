@@ -3,6 +3,7 @@ import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import type { Conditions } from '../types';
 import { useApp } from '../lib/store';
 import {
+  DEFAULT_FACTORS,
   SHAPE_LABEL,
   TRAJECTORY_LABEL,
   WIND_UNIT,
@@ -20,6 +21,7 @@ import {
 } from '../lib/golf';
 import { WindControl } from './WindControl';
 import { SlopeControl } from './SlopeControl';
+import { DistanceLadder } from './DistanceLadder';
 
 function StepBtn({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
@@ -44,7 +46,7 @@ function DiffBadge({ diff, u }: { diff: number; u: 'yd' | 'm' }) {
   const tone =
     abs <= 3
       ? 'bg-lime-400/15 text-lime-300'
-      : abs <= 8
+      : abs <= 6
         ? 'bg-amber-400/15 text-amber-300'
         : 'bg-red-400/15 text-red-300';
   return (
@@ -81,6 +83,20 @@ export function PlayScreen() {
 
   const slopeDeg = finiteOr(c.slopeDeg, 0);
   const windParts = windLabel(c, sys);
+
+  // What today's stance slope does to the best shot's carry — shown in the
+  // slope card's middle column.
+  let slopeEffectLabel: string | null = null;
+  if (best) {
+    if (slopeDeg === 0) {
+      slopeEffectLabel = 'No change';
+    } else {
+      const yd =
+        (-slopeDeg * finiteOr(s.factors?.slopePctPerDeg, DEFAULT_FACTORS.slopePctPerDeg) * finiteOr(best.shot.carry, 0)) / 100;
+      const dispAbs = Math.round(Math.abs(toDisplayYards(yd, u)));
+      slopeEffectLabel = dispAbs === 0 ? 'No change' : `${dispAbs} ${u} ${yd < 0 ? 'shorter' : 'longer'}`;
+    }
+  }
 
   // ---- Distance & wind dock -------------------------------------------------
   // A bottom sheet. Dragging the handle moves the sheet with the finger in
@@ -161,7 +177,6 @@ export function PlayScreen() {
       {/* Primary info — your options, always in view */}
       <div className="space-y-4 pb-44">
         <section className="space-y-3">
-          <SectionTitle>Your options</SectionTitle>
           {state.shots.length === 0 && (
             <p className="rounded-xl bg-turf-800 p-4 text-sm text-turf-300">
               Your arsenal is empty — add shots in the Arsenal tab.
@@ -181,7 +196,7 @@ export function PlayScreen() {
               </h3>
               <p className="mt-1 text-turf-100">
                 Flies <span className="font-semibold">{fmtDist(best.effectiveCarry, u)}</span>
-                <span className="text-turf-300"> here (stock {fmtDist(best.shot.carry, u)})</span>
+                <span className="text-turf-300"> (stock {fmtDist(best.shot.carry, u)})</span>
               </p>
               <div className="mt-2 flex flex-wrap gap-2 text-xs">
                 <span className="rounded-full bg-turf-600 px-2 py-0.5 text-turf-100">
@@ -196,13 +211,13 @@ export function PlayScreen() {
                     {Math.round(best.windPct)}%
                   </span>
                 )}
+                {Math.abs(crossRight) >= 3 && (
+                  <span className="rounded-full bg-amber-400/15 px-2 py-0.5 tabular-nums text-amber-300">
+                    aim ~{Math.round(toDisplayYards(crossAimYards(best.effectiveCarry, crossRight), u))} {u}{' '}
+                    {crossRight > 0 ? 'left' : 'right'}
+                  </span>
+                )}
               </div>
-              {Math.abs(crossRight) >= 3 && (
-                <p className="mt-2 text-sm text-amber-300">
-                  Crosswind: start your ball ~{Math.round(toDisplayYards(crossAimYards(best.effectiveCarry, crossRight), u))} {u}{' '}
-                  {crossRight > 0 ? 'left' : 'right'} of the flag.
-                </p>
-              )}
               {best.shot.notes && <p className="mt-2 text-sm italic text-turf-200">{best.shot.notes}</p>}
             </article>
           )}
@@ -239,13 +254,15 @@ export function PlayScreen() {
                     <div className="font-medium">
                       {r.shot.club} <span className="text-turf-300">· {r.shot.name}</span>
                     </div>
-                    <div className="text-xs text-turf-300">flies {fmtDist(r.effectiveCarry, u)}</div>
+                    <div className="text-xs text-turf-300">Flies {fmtDist(r.effectiveCarry, u)}</div>
                   </div>
                   <DiffBadge diff={r.diff} u={u} />
                 </li>
               ))}
             </ul>
           )}
+
+          <DistanceLadder shots={state.shots} units={u} />
         </section>
       </div>
 
@@ -355,7 +372,7 @@ export function PlayScreen() {
                 <section className="rounded-2xl bg-turf-800 p-4">
                   <SectionTitle>Front-back slope</SectionTitle>
                   <div className="mt-2">
-                    <SlopeControl value={slopeDeg} onChange={(deg) => setCond({ slopeDeg: deg })} />
+                    <SlopeControl value={slopeDeg} onChange={(deg) => setCond({ slopeDeg: deg })} effectLabel={slopeEffectLabel} />
                   </div>
                   <p className="mt-2 text-xs text-turf-400">The tilt under your feet</p>
                 </section>
