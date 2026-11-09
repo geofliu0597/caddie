@@ -348,7 +348,9 @@ export function PlayScreen() {
                         <StepBtn label="+1" onClick={() => setWind(windDisp + 1)} />
                         <StepBtn label="+5" onClick={() => setWind(windDisp + 5)} />
                       </div>
-                      <p className="mt-3 text-center text-sm leading-snug text-turf-200">
+                      {/* Reserve two lines so the value and buttons above never
+                          shift as the component lines appear or disappear. */}
+                      <p className="mt-3 min-h-10 text-center text-sm leading-5 text-turf-200">
                         {windParts.map((part) => (
                           <span key={part} className="block">
                             {part}
