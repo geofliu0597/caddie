@@ -17,8 +17,9 @@ import type { Conditions, Factors, Settings, Shot, Trajectory, UnitsSystem } fro
  *    that scale every shot's flight.
  *
  * effective carry(shot) = stock carry × wind × temperature × altitude
- * The best shot minimizes |effective carry − distance to cover|, with
- * overshoots penalized (flying the green is worse than coming up short).
+ * The best shot minimizes |effective carry − distance to cover|, with the
+ * side the golfer doesn't want to miss on penalized (default: overshoots —
+ * flying the green is worse; the dock's miss preference flips which side).
  */
 export const DEFAULT_FACTORS: Factors = {
   headwindPctPerMph: 0.8,
@@ -185,7 +186,19 @@ export function estimateShot(shot: Shot, c: Conditions, settings: Settings): Sho
     (1 + slopePct / 100) *
     (1 + formPct / 100);
   const diff = effectiveCarry - finiteOr(c.pinDistance, 0);
-  const score = diff >= 0 ? diff * finiteOr(f.overshootPenalty, DEFAULT_FACTORS.overshootPenalty) : -diff;
+  // Miss preference: by default overshoots are penalized (trouble long of the
+  // green is the common case). 'long' flips it — undershoots get penalized
+  // instead (e.g. a bunker guarding the front). Either way the penalty size
+  // is the tunable overshoot factor.
+  const penalty = finiteOr(f.overshootPenalty, DEFAULT_FACTORS.overshootPenalty);
+  const score =
+    c.missPref !== 'long'
+      ? diff >= 0
+        ? diff * penalty
+        : -diff
+      : diff <= 0
+        ? -diff * penalty
+        : diff;
   return { shot, effectiveCarry, diff, score, windPct };
 }
 

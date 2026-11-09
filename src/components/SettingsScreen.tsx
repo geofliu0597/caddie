@@ -299,14 +299,14 @@ export function SettingsScreen() {
             hint="Carry change per degree of uphill stance slope — an uphill lie adds loft (shorter), a downhill lie delofts (longer)."
             value={f.slopePctPerDeg}
             min={0}
-            max={3}
+            max={2}
             step={0.1}
             fmt={(v) => `${v.toFixed(1)}% / deg`}
             onChange={(v) => setF({ slopePctPerDeg: v })}
           />
           <FactorRow
             label="Overshoot penalty"
-            hint="How much worse flying the green is vs. coming up short, when ranking shots."
+            hint="Ranking penalty on the side you don't want to miss — which side is set by Miss preference on the Play tab."
             value={f.overshootPenalty}
             min={1}
             max={3}

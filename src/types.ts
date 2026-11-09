@@ -29,6 +29,13 @@ export interface Conditions {
   windDir: number;
   /** Slope of the ground under the golfer's feet, degrees. + = uphill stance (adds loft, plays shorter), − = downhill (delofts, plays longer). */
   slopeDeg: number;
+  /**
+   * Which miss the golfer prefers when no shot lands exact: 'short' penalizes
+   * overshoots when ranking (default — trouble long of the green), 'long'
+   * penalizes undershoots instead (trouble short, e.g. a front bunker). The
+   * penalty size is the Overshoot penalty factor in Settings.
+   */
+  missPref: 'short' | 'long';
 }
 
 /** Tunable constants for the model. See README for what each does. */
@@ -39,7 +46,7 @@ export interface Factors {
   altPctPer1000Ft: number;
   /** Carry change per degree of uphill slope to the green. */
   slopePctPerDeg: number;
-  /** Overshoots are worse than coming up short — this multiplies the "flies past" penalty when ranking. */
+  /** Ranking penalty on the side the golfer doesn't want to miss on — which side flips with the conditions' missPref. */
   overshootPenalty: number;
 }
 

@@ -82,6 +82,7 @@ export function PlayScreen() {
   const shortestLong = [...ranked].filter((r) => r.diff > 0).sort((a, b) => a.diff - b.diff)[0];
 
   const slopeDeg = finiteOr(c.slopeDeg, 0);
+  const missPref = c.missPref === 'long' ? 'long' : 'short';
   const windParts = windLabel(c, sys);
 
   // What today's stance slope does to the best shot's carry — shown on the
@@ -381,6 +382,29 @@ export function PlayScreen() {
                     />
                   </div>
                   <p className="mt-2 text-xs text-turf-400">The tilt under your feet</p>
+                </section>
+
+                <section className="rounded-2xl bg-turf-800 p-4">
+                  <SectionTitle>Miss preference</SectionTitle>
+                  <div className="mt-2 flex rounded-xl bg-turf-700 p-1">
+                    {(['short', 'long'] as const).map((pref) => (
+                      <button
+                        key={pref}
+                        type="button"
+                        onClick={() => setCond({ missPref: pref })}
+                        className={`h-10 flex-1 rounded-lg text-sm font-semibold ${
+                          missPref === pref ? 'bg-lime-400 text-turf-950' : 'text-turf-200'
+                        }`}
+                      >
+                        {pref === 'short' ? 'Undershoot' : 'Overshoot'}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-turf-400">
+                    Where you'd rather miss on an imperfect strike — trouble long of the green →
+                    Undershoot; bunker guarding the front → Overshoot. The other side is penalized by
+                    the Overshoot penalty in Settings.
+                  </p>
                 </section>
                 </div>
               </div>

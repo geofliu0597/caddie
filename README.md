@@ -56,8 +56,10 @@ the app ranks shots by how close they land to your number:
 Wind is applied as a percentage scaled by the shot's trajectory — high-flying
 shots are hurt more by a headwind than punch shots, which is exactly why the
 arsenal concept beats a plain club list. Overshoots are penalized when ranking
-(flying the green is worse than coming up short). Crosswinds get a rough aim
-hint instead of a distance change.
+(flying the green is worse than coming up short). The dock's **Miss
+preference** flips that: with trouble guarding the front (a bunker short of
+the green), set it to Overshoot and undershoots are penalized instead.
+Crosswinds get a rough aim hint instead of a distance change.
 
 Temperature and course altitude live in **Settings → Round conditions** — set
 them once when you arrive, not per swing. The same section has a **"How am I
@@ -77,7 +79,7 @@ Tuning factors (all adjustable in Settings → Model tuning):
 | Temperature | 0.15%/°F | per °F away from 68°F (20°C) |
 | Altitude | 2%/1000 ft | distance gained per 1,000 ft above sea level |
 | Stance slope | 1%/deg | carry change per degree of uphill ground under your feet (uphill lie adds loft, plays shorter) |
-| Overshoot penalty | 1.5× | ranking weight for flying past the number |
+| Overshoot penalty | 1.5× | ranking penalty on the side you don't want to miss (which side is set on the Play tab) |
 
 These are caddie heuristics, not physics — play a few rounds, compare results,
 tune them to your game.

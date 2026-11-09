@@ -45,7 +45,7 @@ export function freshState(): AppState {
   return {
     version: STATE_VERSION,
     shots: sampleShots(),
-    conditions: { pinDistance: 150, windSpeed: 0, windDir: 0, slopeDeg: 0 },
+    conditions: { pinDistance: 150, windSpeed: 0, windDir: 0, slopeDeg: 0, missPref: 'short' },
     settings: {
       units: 'yd',
       unitsSystem: 'metric',
@@ -145,6 +145,9 @@ export function normalizeState(input: unknown): AppState {
       windSpeed: clamp(finiteOr(c.windSpeed, 0), 0, 40),
       windDir: ((finiteOr(c.windDir, 0) % 360) + 360) % 360,
       slopeDeg: clamp(finiteOr(c.slopeDeg, 0), -30, 30),
+      // Anything other than 'long' (including missing, from older saves) ranks
+      // with the default preference: come up short.
+      missPref: c.missPref === 'long' ? 'long' : 'short',
     },
     settings: {
       units: st.units === 'm' ? 'm' : 'yd',
