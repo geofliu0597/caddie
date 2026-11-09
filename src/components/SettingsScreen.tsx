@@ -12,6 +12,7 @@ import {
   tempFromDisplay,
 } from '../lib/golf';
 import { STATE_VERSION, freshState, useApp } from '../lib/store';
+import { InfoTip } from './InfoTip';
 
 function SectionTitle({ children }: { children: string }) {
   return <h2 className="text-xs font-semibold uppercase tracking-wider text-turf-300">{children}</h2>;
@@ -38,11 +39,15 @@ function FactorRow({
 }) {
   return (
     <div className="py-2">
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-medium text-turf-100">{label}</span>
-        <span className="text-sm font-semibold tabular-nums text-lime-300">{fmt ? fmt(value) : value}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold tabular-nums text-lime-300">{fmt ? fmt(value) : value}</span>
+          <InfoTip>
+            <p>{hint}</p>
+          </InfoTip>
+        </div>
       </div>
-      <p className="text-xs text-turf-400">{hint}</p>
       <input
         type="range"
         min={min}
@@ -61,16 +66,25 @@ function ConditionChips({
   options,
   value,
   label,
+  info,
   onSelect,
 }: {
   options: { v: number; label: string }[];
   value: number;
   label: string;
+  info?: string;
   onSelect: (v: number) => void;
 }) {
   return (
     <div className="mt-3">
-      <span className="text-sm font-medium text-turf-100">{label}</span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium text-turf-100">{label}</span>
+        {info && (
+          <InfoTip>
+            <p>{info}</p>
+          </InfoTip>
+        )}
+      </div>
       <div className="mt-2 flex flex-wrap gap-2">
         {options.map((o) => (
           <button
@@ -192,13 +206,21 @@ export function SettingsScreen() {
 
       {/* Round conditions */}
       <section className="rounded-2xl bg-turf-800 p-4">
-        <SectionTitle>Round conditions</SectionTitle>
-        <p className="mt-1 text-xs text-turf-400">
-          Set once when you arrive — these change how far your shots fly, not the number you cover.
-          The stance slope under your feet is entered per shot on the Play tab.
-        </p>
+        <div className="flex items-center justify-between">
+          <SectionTitle>Round conditions</SectionTitle>
+          <InfoTip>
+            <p>
+              Set once when you arrive — these change how far your shots fly, not the number you
+              cover.
+            </p>
+            <p className="mt-1">
+              The stance slope under your feet is entered per shot on the Play tab.
+            </p>
+          </InfoTip>
+        </div>
         <ConditionChips
           label={`Temperature (${TEMP_UNIT(sys)})`}
+          info="Distances are defined at the 20°C (68°F) baseline. Colder air is denser and the ball flies shorter; warmer air flies farther — the Temperature factor in Model tuning sets how much."
           value={finiteOr(s.tempF, BASELINE_TEMP_F)}
           options={
             sys === 'metric'
@@ -209,6 +231,7 @@ export function SettingsScreen() {
         />
         <ConditionChips
           label={`Course altitude (${sys === 'metric' ? 'm' : 'ft'} above sea level)`}
+          info="Sea level is the baseline. Thinner air up high means less drag, so the ball flies farther — the Altitude factor in Model tuning sets how much."
           value={finiteOr(s.courseAltFt, 0)}
           options={
             sys === 'metric'
@@ -239,20 +262,24 @@ export function SettingsScreen() {
 
       {/* Model tuning */}
       <section className="rounded-2xl bg-turf-800 p-4">
-        <div className="flex items-baseline justify-between">
+        <div className="flex items-center justify-between">
           <SectionTitle>Model tuning</SectionTitle>
-          <button
-            type="button"
-            onClick={() => setF({ ...DEFAULT_FACTORS })}
-            className="text-xs font-semibold text-lime-300 underline"
-          >
-            Reset to defaults
-          </button>
+          <div className="flex items-center gap-3">
+            <InfoTip>
+              <p>
+                These are heuristics, not physics. Play a few rounds, compare what actually
+                happened, and tune them to your game. Values follow your conditions units.
+              </p>
+            </InfoTip>
+            <button
+              type="button"
+              onClick={() => setF({ ...DEFAULT_FACTORS })}
+              className="text-xs font-semibold text-lime-300 underline"
+            >
+              Reset to defaults
+            </button>
+          </div>
         </div>
-        <p className="mt-1 text-xs text-turf-400">
-          These are heuristics, not physics. Play a few rounds, compare what actually happened, and tune
-          them to your game. Values follow your conditions units.
-        </p>
         <div className="mt-2 divide-y divide-turf-700">
           <FactorRow
             label="Headwind"

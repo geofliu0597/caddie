@@ -21,6 +21,7 @@ import {
 } from '../lib/golf';
 import { WindControl } from './WindControl';
 import { SlopeControl } from './SlopeControl';
+import { InfoTip } from './InfoTip';
 
 function StepBtn({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
@@ -37,32 +38,6 @@ function StepBtn({ label, onClick, disabled }: { label: string; onClick: () => v
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return <h2 className="text-xs font-semibold uppercase tracking-wider text-turf-300">{children}</h2>;
-}
-
-/** Small (i) in a card's title row; tapping opens a short explainer. */
-function InfoTip({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="relative shrink-0">
-      <button
-        type="button"
-        aria-label="More info"
-        onClick={() => setOpen((o) => !o)}
-        className="flex h-6 w-6 items-center justify-center rounded-full border border-turf-500 text-[11px] font-semibold text-turf-300 active:bg-turf-600"
-      >
-        i
-      </button>
-      {open && (
-        <>
-          {/* tap anywhere outside to dismiss */}
-          <div className="fixed inset-0" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-7 z-10 w-56 rounded-xl border border-turf-600 bg-turf-700 p-3 text-xs leading-relaxed text-turf-200 shadow-xl">
-            {children}
-          </div>
-        </>
-      )}
-    </div>
-  );
 }
 
 function DiffBadge({ diff, u }: { diff: number; u: 'yd' | 'm' }) {
@@ -343,9 +318,6 @@ export function PlayScreen() {
                     className="mt-3 w-full"
                     aria-label="Distance to pin"
                   />
-                  <p className="mt-1 text-xs text-turf-400">
-                    A slope-adjusted laser reading is perfect here — the app treats it as the number to cover.
-                  </p>
                 </section>
 
                 <section className="rounded-2xl bg-turf-800 p-4">
@@ -385,9 +357,6 @@ export function PlayScreen() {
                       </p>
                     </div>
                   </div>
-                  <p className="mt-2 text-xs text-turf-400">
-                    Drag the dial — the arrow points where the wind blows. Up = toward the green (helping).
-                  </p>
                 </section>
 
                 <section className="rounded-2xl bg-turf-800 p-4">
@@ -410,7 +379,6 @@ export function PlayScreen() {
                       effectQualifier={slopeEffectQualifier}
                     />
                   </div>
-                  <p className="mt-2 text-xs text-turf-400">The tilt under your feet</p>
                 </section>
 
                 <section className="rounded-2xl bg-turf-800 p-4">
@@ -442,11 +410,6 @@ export function PlayScreen() {
                       </button>
                     ))}
                   </div>
-                  <p className="mt-2 text-xs text-turf-400">
-                    Where you'd rather miss on an imperfect strike — trouble long of the green →
-                    Undershoot; bunker guarding the front → Overshoot. The other side is penalized by
-                    the Overshoot penalty in Settings.
-                  </p>
                 </section>
                 </div>
               </div>
