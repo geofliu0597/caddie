@@ -160,11 +160,8 @@ export function normalizeState(input: unknown): AppState {
       courseAltFt: finiteOr(st.courseAltFt, 0),
       formPct: clamp(finiteOr(st.formPct, 0), -20, 20),
       factors: {
-        headwindPctPerMph: finiteOr(f.headwindPctPerMph, DEFAULT_FACTORS.headwindPctPerMph),
-        tailwindPctPerMph: finiteOr(f.tailwindPctPerMph, DEFAULT_FACTORS.tailwindPctPerMph),
         tempPctPerDegF: finiteOr(f.tempPctPerDegF, DEFAULT_FACTORS.tempPctPerDegF),
         altPctPer1000Ft: finiteOr(f.altPctPer1000Ft, DEFAULT_FACTORS.altPctPer1000Ft),
-        slopePctPerDeg: finiteOr(f.slopePctPerDeg, DEFAULT_FACTORS.slopePctPerDeg),
         overshootPenalty: finiteOr(f.overshootPenalty, DEFAULT_FACTORS.overshootPenalty),
       },
     },

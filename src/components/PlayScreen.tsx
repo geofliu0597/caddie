@@ -3,7 +3,6 @@ import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import type { Conditions } from '../types';
 import { useApp } from '../lib/store';
 import {
-  DEFAULT_FACTORS,
   SHAPE_LABEL,
   TRAJECTORY_LABEL,
   WIND_UNIT,
@@ -13,6 +12,7 @@ import {
   fmtDist,
   fromDisplayYards,
   rankShots,
+  slopeCarryPct,
   toDisplayYards,
   windComponents,
   windFromDisplay,
@@ -86,8 +86,7 @@ export function PlayScreen() {
   let slopeEffectValue: string | null = null;
   let slopeEffectQualifier: string | null = null;
   if (best && slopeDeg !== 0) {
-    const yd =
-      (-slopeDeg * finiteOr(s.factors?.slopePctPerDeg, DEFAULT_FACTORS.slopePctPerDeg) * finiteOr(best.shot.carry, 0)) / 100;
+    const yd = (slopeCarryPct(slopeDeg) * finiteOr(best.shot.carry, 0)) / 100;
     const dispAbs = Math.round(Math.abs(toDisplayYards(yd, u)));
     if (dispAbs >= 1) {
       slopeEffectValue = `${dispAbs} ${u}`;
@@ -367,9 +366,11 @@ export function PlayScreen() {
                     <InfoTip>
                       <p>The tilt under your feet.</p>
                       <p className="mt-1">
-                        An uphill stance tilts you back and adds loft — the shot flies shorter. A
-                        downhill stance delofts — longer. A laser can't see your lie, so set this
-                        whenever the ground tilts where you're standing.
+                        Uphill adds loft: about the same carry, higher flight, lands steep and
+                        stops. Downhill delofts: carries less — club up to fly hazards — then
+                        rolls out a lot. The classic "downhill plays longer" is total distance
+                        (rollout), not carry. A laser can't see your lie, so set this whenever
+                        the ground tilts where you're standing.
                       </p>
                     </InfoTip>
                   </div>

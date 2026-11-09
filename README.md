@@ -53,9 +53,11 @@ the app ranks shots by how close they land to your number:
   slope-adjusted laser reading is ideal — it already handles the elevation
   change to the green, so there's no separate target-elevation input.
 - **Stance slope** (Play tab) = the tilt of the ground under your feet, which a
-  laser can't see: an uphill lie adds loft and shortens the carry, a downhill
-  lie delofts and lengthens it. Set it whenever you're standing on a slope.
-- **Effective carry** (per shot) = stock carry × wind × temperature × altitude.
+  laser can't see: an uphill lie adds loft — about the same carry, a steeper
+  landing that stops fast — while a downhill lie delofts and carries LESS,
+  then rolls out a lot. Set it whenever you're standing on a slope.
+- **Effective carry** (per shot) = stock carry × wind × temperature × altitude
+  × stance slope × day form.
 
 Wind is applied as a percentage scaled by the shot's trajectory — high-flying
 shots are hurt more by a headwind than punch shots, which is exactly why the
@@ -78,15 +80,28 @@ Tuning factors (all adjustable in Settings → Model tuning):
 
 | Factor | Default | Meaning |
 |---|---|---|
-| Headwind | 0.8%/mph | distance lost per mph into the wind |
-| Tailwind | 0.45%/mph | distance gained per mph behind |
 | Temperature | 0.15%/°F | per °F away from 68°F (20°C) |
 | Altitude | 2%/1000 ft | distance gained per 1,000 ft above sea level |
-| Stance slope | 1%/deg | carry change per degree of uphill ground under your feet (uphill lie adds loft, plays shorter) |
 | Overshoot penalty | 1.5× | ranking penalty on the side you don't want to miss (which side is set on the Play tab) |
 
 These are caddie heuristics, not physics — play a few rounds, compare results,
 tune them to your game.
+
+Wind coefficients are fixed model constants, not tunables: a mid-trajectory
+shot loses ~0.7% of carry per mph of headwind and gains ~0.45% per mph of
+tailwind, scaled by trajectory (high-flying shots are affected more). The
+asymmetry — headwinds hurt roughly twice as much as tailwinds help — matches
+published launch-monitor data from Trackman and Titleist.
+
+Stance slope is a fixed model constant too. Launch-monitor testing (MyGolfSpy
++ Penn State's GCQuad slope test, plus informal Trackman tests) puts the loft
+change at roughly half the slope angle, with mid-irons gaining or losing ~2%
+of carry per degree of loft. That makes the curve asymmetric: mild uphill
+carries a touch farther (+2.5% peak at 5°, back to 0% at 10°, then balloons),
+while downhill always carries shorter (~1.2% per degree, clamped at −15%)
+because the lower launch costs air time — the "downhill plays longer" rule
+describes rollout, not carry. Expect wider shot-to-shot spread on any slope
+≥ 5°: strike scatter grows faster than the average shift.
 
 ## Where the data lives
 

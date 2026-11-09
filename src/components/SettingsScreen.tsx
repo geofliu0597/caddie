@@ -3,10 +3,8 @@ import type { Factors, UnitsSystem } from '../types';
 import {
   BASELINE_TEMP_F,
   DEFAULT_FACTORS,
-  KMH_PER_MPH,
   METERS_PER_FOOT,
   TEMP_UNIT,
-  WIND_UNIT,
   altFromDisplay,
   finiteOr,
   tempFromDisplay,
@@ -109,20 +107,15 @@ export function SettingsScreen() {
   const sys: UnitsSystem = s.unitsSystem === 'imperial' ? 'imperial' : 'metric';
   // Guarded reads: even if a factor is missing/NaN, the sliders always get a number.
   const f = {
-    headwindPctPerMph: finiteOr(s.factors?.headwindPctPerMph, DEFAULT_FACTORS.headwindPctPerMph),
-    tailwindPctPerMph: finiteOr(s.factors?.tailwindPctPerMph, DEFAULT_FACTORS.tailwindPctPerMph),
     tempPctPerDegF: finiteOr(s.factors?.tempPctPerDegF, DEFAULT_FACTORS.tempPctPerDegF),
     altPctPer1000Ft: finiteOr(s.factors?.altPctPer1000Ft, DEFAULT_FACTORS.altPctPer1000Ft),
-    slopePctPerDeg: finiteOr(s.factors?.slopePctPerDeg, DEFAULT_FACTORS.slopePctPerDeg),
     overshootPenalty: finiteOr(s.factors?.overshootPenalty, DEFAULT_FACTORS.overshootPenalty),
   };
   const setS = (patch: Partial<typeof s>) => dispatch({ type: 'setSettings', patch });
   const setF = (patch: Partial<Factors>) => dispatch({ type: 'setFactors', patch });
 
-  // Factor conversions: the model stores per-mph / per-°F / per-1000 ft; sliders
+  // Factor conversions: the model stores per-°F / per-1000 ft; sliders
   // speak the active conditions unit so tuning stays intuitive.
-  const perWind = (v: number) => (sys === 'metric' ? v / KMH_PER_MPH : v);
-  const perWindApply = (v: number) => (sys === 'metric' ? v * KMH_PER_MPH : v);
   const F_PER_C = 9 / 5;
   const perTemp = (v: number) => (sys === 'metric' ? v * F_PER_C : v);
   const perTempApply = (v: number) => (sys === 'metric' ? v / F_PER_C : v);
@@ -282,26 +275,6 @@ export function SettingsScreen() {
         </div>
         <div className="mt-2 divide-y divide-turf-700">
           <FactorRow
-            label="Headwind"
-            hint={`Distance lost per ${WIND_UNIT(sys)} of headwind, % of carry.`}
-            value={perWind(f.headwindPctPerMph)}
-            min={sys === 'metric' ? 0.12 : 0.2}
-            max={sys === 'metric' ? 0.93 : 1.5}
-            step={sys === 'metric' ? 0.03 : 0.05}
-            fmt={(v) => `${v.toFixed(2)}% / ${WIND_UNIT(sys)}`}
-            onChange={(v) => setF({ headwindPctPerMph: perWindApply(v) })}
-          />
-          <FactorRow
-            label="Tailwind"
-            hint={`Distance gained per ${WIND_UNIT(sys)} of tailwind — helping winds help less than headwinds hurt.`}
-            value={perWind(f.tailwindPctPerMph)}
-            min={sys === 'metric' ? 0.06 : 0.1}
-            max={sys === 'metric' ? 0.75 : 1.2}
-            step={sys === 'metric' ? 0.03 : 0.05}
-            fmt={(v) => `${v.toFixed(2)}% / ${WIND_UNIT(sys)}`}
-            onChange={(v) => setF({ tailwindPctPerMph: perWindApply(v) })}
-          />
-          <FactorRow
             label="Temperature"
             hint={`Per ${TEMP_UNIT(sys)} away from the 20°C (68°F) baseline. Cold air = shorter ball.`}
             value={perTemp(f.tempPctPerDegF)}
@@ -320,16 +293,6 @@ export function SettingsScreen() {
             step={sys === 'metric' ? 0.3 : 0.1}
             fmt={(v) => `${v.toFixed(1)}% / 1000 ${sys === 'metric' ? 'm' : 'ft'}`}
             onChange={(v) => setF({ altPctPer1000Ft: perAltApply(v) })}
-          />
-          <FactorRow
-            label="Slope"
-            hint="Carry change per degree of uphill stance slope — an uphill lie adds loft (shorter), a downhill lie delofts (longer)."
-            value={f.slopePctPerDeg}
-            min={0}
-            max={2}
-            step={0.1}
-            fmt={(v) => `${v.toFixed(1)}% / deg`}
-            onChange={(v) => setF({ slopePctPerDeg: v })}
           />
           <FactorRow
             label="Overshoot penalty"

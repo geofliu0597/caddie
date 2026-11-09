@@ -27,7 +27,7 @@ export interface Conditions {
   windSpeed: number;
   /** Direction the wind blows TOWARD, degrees. 0 = toward the green (tailwind), 90 = left-to-right, 180 = back at you (headwind). */
   windDir: number;
-  /** Slope of the ground under the golfer's feet, degrees. + = uphill stance (adds loft, plays shorter), − = downhill (delofts, plays longer). */
+  /** Slope of the ground under the golfer's feet, degrees. + = uphill stance (adds loft — about the same carry, lands steep and stops), − = downhill (delofts — carries less, rolls much more). */
   slopeDeg: number;
   /**
    * Which miss the golfer prefers when no shot lands exact: 'short' penalizes
@@ -40,12 +40,8 @@ export interface Conditions {
 
 /** Tunable constants for the model. See README for what each does. */
 export interface Factors {
-  headwindPctPerMph: number;
-  tailwindPctPerMph: number;
   tempPctPerDegF: number;
   altPctPer1000Ft: number;
-  /** Carry change per degree of uphill slope to the green. */
-  slopePctPerDeg: number;
   /** Ranking penalty on the side the golfer doesn't want to miss on — which side flips with the conditions' missPref. */
   overshootPenalty: number;
 }

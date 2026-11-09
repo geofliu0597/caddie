@@ -17,18 +17,25 @@ import type { Conditions, Factors, Settings, Shot, Trajectory, UnitsSystem } fro
  *    that scale every shot's flight.
  *
  * effective carry(shot) = stock carry × wind × temperature × altitude
+ *                          × stance slope × day form
  * The best shot minimizes |effective carry − distance to cover|, with the
  * side the golfer doesn't want to miss on penalized (default: overshoots —
  * flying the green is worse; the dock's miss preference flips which side).
  */
 export const DEFAULT_FACTORS: Factors = {
-  headwindPctPerMph: 0.8,
-  tailwindPctPerMph: 0.45,
   tempPctPerDegF: 0.15,
   altPctPer1000Ft: 2,
-  slopePctPerDeg: 1,
   overshootPenalty: 1.5,
 };
+
+/**
+ * Wind sensitivity of a normal ball flight, % of carry per mph. Fixed model
+ * constants, not user-tunable: published launch-monitor data (Trackman,
+ * Titleist) puts a mid-trajectory shot at ~0.5–0.75% lost per mph of headwind,
+ * with tailwinds helping only ~50–65% as much as headwinds hurt.
+ */
+export const HEADWIND_PCT_PER_MPH = 0.7;
+export const TAILWIND_PCT_PER_MPH = 0.45;
 
 /** How strongly wind affects a shot, relative to a normal ball flight. */
 export const TRAJECTORY_WIND: Record<Trajectory, number> = { low: 0.65, mid: 1.0, high: 1.3 };
@@ -142,6 +149,38 @@ export function windLabel(c: Conditions, sys: UnitsSystem = 'imperial'): string[
   return parts;
 }
 
+// ---- stance slope (carry effect) -------------------------------------------
+
+/**
+ * Stance-slope carry model, % of stock carry. Fixed constants, not
+ * user-tunable. Launch-monitor tests (MyGolfSpy + Penn State GCQuad 7° slope
+ * test; informal Trackman slope tests) put the loft transfer at ~0.5–0.7× the
+ * slope angle and carry at ~2% per degree of loft for mid-irons. Uphill: the
+ * loft gain moves launch toward carry-optimal (a normal iron flight is
+ * optimized for total distance, i.e. under-launched for carry), so carry
+ * peaks ~+2.5% at 5°, then ballooning — spin up, ball speed down — drags it
+ * back to 0% by 10° and negative beyond. Downhill: delofting drops launch
+ * below carry-optimal, so carry SHRINKS ~1.2%/°. The classic "downhill plays
+ * longer" rule is about rollout — total distance — which the carry model
+ * deliberately doesn't count. Past the ±15% cap, strike variance dominates
+ * anyway.
+ */
+export const UPSLOPE_PCT_PER_DEG = 1.0;
+export const UPSLOPE_BALLOON_PCT_PER_DEG_SQ = 0.1;
+export const DOWNSLOPE_PCT_PER_DEG = 1.2;
+export const SLOPE_PCT_MAX = 4;
+export const SLOPE_PCT_MIN = -15;
+
+/** Carry change (%) from the ground tilt under the golfer's feet. +uphill. */
+export function slopeCarryPct(slopeDeg: number): number {
+  const s = finiteOr(slopeDeg, 0);
+  const pct =
+    s >= 0
+      ? UPSLOPE_PCT_PER_DEG * s - UPSLOPE_BALLOON_PCT_PER_DEG_SQ * s * s
+      : DOWNSLOPE_PCT_PER_DEG * s;
+  return clamp(pct, SLOPE_PCT_MIN, SLOPE_PCT_MAX);
+}
+
 // ---- the model -------------------------------------------------------------
 
 export interface ShotEstimate {
@@ -159,10 +198,7 @@ export interface ShotEstimate {
 export function estimateShot(shot: Shot, c: Conditions, settings: Settings): ShotEstimate {
   const f = settings.factors ?? DEFAULT_FACTORS;
   const { head } = windComponents(c);
-  const k =
-    head >= 0
-      ? finiteOr(f.headwindPctPerMph, DEFAULT_FACTORS.headwindPctPerMph)
-      : finiteOr(f.tailwindPctPerMph, DEFAULT_FACTORS.tailwindPctPerMph);
+  const k = head >= 0 ? HEADWIND_PCT_PER_MPH : TAILWIND_PCT_PER_MPH;
   const sens = shot.windSensitivity ?? TRAJECTORY_WIND[shot.trajectory] ?? TRAJECTORY_WIND.mid;
   const windPct = clamp(-head * k * sens, -40, 40);
   const tempPct =
@@ -171,10 +207,10 @@ export function estimateShot(shot: Shot, c: Conditions, settings: Settings): Sho
   const altPct =
     (finiteOr(settings.courseAltFt, 0) / 1000) *
     finiteOr(f.altPctPer1000Ft, DEFAULT_FACTORS.altPctPer1000Ft);
-  // Stance slope under the golfer's feet: an uphill lie tilts the body back
-  // and adds effective loft — shorter carry; a downhill lie delofts — longer.
-  const slopePct =
-    -finiteOr(c.slopeDeg, 0) * finiteOr(f.slopePctPerDeg, DEFAULT_FACTORS.slopePctPerDeg);
+  // Stance slope under the golfer's feet (see slopeCarryPct): uphill adds
+  // loft — about the same carry at mild slopes, ballooning past 10°; downhill
+  // delofts — carry shrinks, rollout (not modeled) grows.
+  const slopePct = slopeCarryPct(c.slopeDeg);
   // Day form: the arsenal numbers are a sim/range baseline; shift them all for
   // how the golfer is striking it today.
   const formPct = finiteOr(settings.formPct, 0);
