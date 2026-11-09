@@ -1,4 +1,5 @@
 import type { PointerEvent } from 'react';
+import { finiteOr } from '../lib/golf';
 import { useApp } from '../lib/store';
 
 const SIZE = 160;
@@ -11,7 +12,7 @@ const C = SIZE / 2;
  */
 export function WindControl() {
   const { state, dispatch } = useApp();
-  const dir = state.conditions.windDir;
+  const dir = finiteOr(state.conditions.windDir, 0);
   const setDir = (d: number) => dispatch({ type: 'setConditions', patch: { windDir: d } });
 
   const fromPointer = (e: PointerEvent<SVGSVGElement>) => {

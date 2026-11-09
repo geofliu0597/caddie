@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
 import type { Dispatch, ReactNode } from 'react';
-import type { AppState, Conditions, Factors, Settings, Shot } from '../types';
-import { DEFAULT_FACTORS } from './golf';
+import type { AppState, Conditions, Factors, Settings, Shape, Shot, Trajectory } from '../types';
+import { BASELINE_TEMP_F, DEFAULT_FACTORS, clamp, finiteOr } from './golf';
 
 const STORAGE_KEY = 'caddie-state-v1';
 export const STATE_VERSION = 1;
@@ -49,7 +49,7 @@ export function freshState(): AppState {
     settings: {
       units: 'yd',
       unitsSystem: 'metric',
-      tempF: 70,
+      tempF: BASELINE_TEMP_F,
       courseAltFt: 0,
       factors: { ...DEFAULT_FACTORS },
     },
@@ -90,35 +90,82 @@ function reducer(state: AppState, action: AppAction): AppState {
     case 'deleteSampleShots':
       return { ...state, shots: state.shots.filter((s) => !s.sample) };
     case 'replaceAll':
-      return action.state;
+      return normalizeState(action.state);
   }
+}
+
+const TRAJECTORIES: Trajectory[] = ['low', 'mid', 'high'];
+const SHAPES: Shape[] = ['straight', 'draw', 'fade'];
+
+/** Coerce any shot object (old saved shapes, imported files) into a valid Shot. */
+function normalizeShot(raw: unknown): Shot | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const s = raw as Record<string, unknown>;
+  const club = typeof s.club === 'string' ? s.club.trim() : '';
+  if (!club) return null;
+  const carry = finiteOr(s.carry, 0);
+  const total = finiteOr(s.total, 0);
+  const sens = finiteOr(s.windSensitivity, 0);
+  return {
+    id: typeof s.id === 'string' && s.id ? s.id : newShotId(),
+    club,
+    name: typeof s.name === 'string' && s.name.trim() ? s.name.trim() : 'Full',
+    carry,
+    total: total > 0 ? total : null,
+    trajectory: TRAJECTORIES.includes(s.trajectory as Trajectory) ? (s.trajectory as Trajectory) : 'mid',
+    shape: SHAPES.includes(s.shape as Shape) ? (s.shape as Shape) : 'straight',
+    windSensitivity: sens > 0 ? sens : null,
+    notes: typeof s.notes === 'string' && s.notes ? s.notes : undefined,
+    sample: s.sample === true,
+  };
+}
+
+/**
+ * Coerce anything (an old localStorage shape, an imported backup, a
+ * half-migrated in-memory state) into a fully valid AppState. Every numeric
+ * field gets a finite fallback, so the UI and the model can never see NaN —
+ * whatever happened before, the app always renders a sane baseline.
+ */
+/** Exported for tests — also the single choke-point every state entry uses. */
+export function normalizeState(input: unknown): AppState {
+  const base = freshState();
+  if (!input || typeof input !== 'object') return base;
+  const raw = input as Partial<AppState>;
+  if (!Array.isArray(raw.shots)) return base;
+  const c = (raw.conditions ?? {}) as Partial<Conditions>;
+  const st = (raw.settings ?? {}) as Partial<Settings>;
+  const f = (st.factors ?? {}) as Partial<Factors>;
+  const tempF = finiteOr(st.tempF, BASELINE_TEMP_F);
+  return {
+    version: STATE_VERSION,
+    shots: raw.shots.map(normalizeShot).filter((s): s is Shot => s !== null),
+    conditions: {
+      pinDistance: clamp(finiteOr(c.pinDistance, base.conditions.pinDistance), 0, 400),
+      windSpeed: clamp(finiteOr(c.windSpeed, 0), 0, 40),
+      windDir: ((finiteOr(c.windDir, 0) % 360) + 360) % 360,
+    },
+    settings: {
+      units: st.units === 'm' ? 'm' : 'yd',
+      unitsSystem: st.unitsSystem === 'imperial' ? 'imperial' : 'metric',
+      // Migrate the pre-68°F default (70) so existing installs land on the
+      // clean 20°C / 68°F baseline too.
+      tempF: tempF === 70 ? BASELINE_TEMP_F : tempF,
+      courseAltFt: finiteOr(st.courseAltFt, 0),
+      factors: {
+        headwindPctPerMph: finiteOr(f.headwindPctPerMph, DEFAULT_FACTORS.headwindPctPerMph),
+        tailwindPctPerMph: finiteOr(f.tailwindPctPerMph, DEFAULT_FACTORS.tailwindPctPerMph),
+        tempPctPerDegF: finiteOr(f.tempPctPerDegF, DEFAULT_FACTORS.tempPctPerDegF),
+        altPctPer1000Ft: finiteOr(f.altPctPer1000Ft, DEFAULT_FACTORS.altPctPer1000Ft),
+        overshootPenalty: finiteOr(f.overshootPenalty, DEFAULT_FACTORS.overshootPenalty),
+      },
+    },
+  };
 }
 
 function load(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as AppState;
-      const base = freshState();
-      if (
-        parsed &&
-        Array.isArray(parsed.shots) &&
-        parsed.conditions &&
-        parsed.settings &&
-        parsed.settings.factors
-      ) {
-        return {
-          ...base,
-          ...parsed,
-          version: STATE_VERSION,
-          settings: {
-            ...base.settings,
-            ...parsed.settings,
-            factors: { ...DEFAULT_FACTORS, ...parsed.settings.factors },
-          },
-        };
-      }
-    }
+    if (raw) return normalizeState(JSON.parse(raw));
   } catch {
     // corrupt or unavailable storage — fall through to a fresh state
   }

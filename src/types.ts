@@ -6,7 +6,7 @@ export interface Shot {
   id: string;
   club: string; // "Driver", "7 Iron", "Lob Wedge", ...
   name: string; // "Full", "Punch", "Flop", "Knockdown ¾", ...
-  /** Stock carry distance under "standard conditions" (no wind, 70°F, sea level). Yards. */
+  /** Stock carry distance under "standard conditions" (no wind, 20°C/68°F, sea level). Yards. */
   carry: number;
   /** Optional total distance (carry + rollout). Yards. */
   total?: number | null;

@@ -4,7 +4,7 @@ import type { Conditions, Factors, Settings, Shot, Trajectory, UnitsSystem } fro
  * The plays-like model.
  *
  * A shot's stock `carry` is defined under STANDARD CONDITIONS:
- *   no wind · 70°F · sea level.
+ *   no wind · 20°C (68°F) · sea level.
  *
  * On the course:
  *  - The distance to cover is entered directly — a slope-adjusted laser
@@ -29,6 +29,18 @@ export const DEFAULT_FACTORS: Factors = {
 
 /** How strongly wind affects a shot, relative to a normal ball flight. */
 export const TRAJECTORY_WIND: Record<Trajectory, number> = { low: 0.65, mid: 1.0, high: 1.3 };
+
+/** Standard-conditions temperature baseline: 20°C / 68°F — round in both unit systems. */
+export const BASELINE_TEMP_F = 68;
+
+/**
+ * Returns `v` when it is a real finite number, else `fallback`.
+ * Used at every state boundary so a half-migrated or malformed state can
+ * never turn into NaN on screen or in the model.
+ */
+export function finiteOr(v: unknown, fallback: number): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+}
 
 export const TRAJECTORY_LABEL: Record<Trajectory, string> = { low: 'Low', mid: 'Mid', high: 'High' };
 export const SHAPE_LABEL: Record<Shot['shape'], string> = { straight: 'Straight', draw: 'Draw', fade: 'Fade' };
@@ -100,23 +112,26 @@ export interface WindParts {
 }
 
 export function windComponents(c: Conditions): WindParts {
-  const tail = c.windSpeed * Math.cos(rad(c.windDir));
-  const crossRight = c.windSpeed * Math.sin(rad(c.windDir));
+  const speed = finiteOr(c?.windSpeed, 0);
+  const dir = finiteOr(c?.windDir, 0);
+  const tail = speed * Math.cos(rad(dir));
+  const crossRight = speed * Math.sin(rad(dir));
   return { tail, head: -tail, crossRight };
 }
 
 export function windLabel(c: Conditions, sys: UnitsSystem = 'imperial'): string {
-  if (c.windSpeed < 2) return 'Calm';
+  const speed = finiteOr(c?.windSpeed, 0);
+  if (speed < 2) return 'Calm';
   const { tail, head, crossRight } = windComponents(c);
   const w = (mph: number) => `${Math.round(windToDisplay(mph, sys))} ${WIND_UNIT(sys)}`;
   const parts: string[] = [];
-  if (tail >= 0.2 * c.windSpeed) parts.push(`${w(tail)} tailwind`);
-  if (head >= 0.2 * c.windSpeed) parts.push(`${w(head)} headwind`);
+  if (tail >= 0.2 * speed) parts.push(`${w(tail)} tailwind`);
+  if (head >= 0.2 * speed) parts.push(`${w(head)} headwind`);
   const cross = Math.abs(crossRight);
-  if (cross >= 0.2 * c.windSpeed) {
+  if (cross >= 0.2 * speed) {
     parts.push(`${w(cross)} ${crossRight > 0 ? 'left → right' : 'right → left'}`);
   }
-  if (parts.length === 0) parts.push(`${w(c.windSpeed)} quartering`);
+  if (parts.length === 0) parts.push(`${w(speed)} quartering`);
   return parts.join(' + ');
 }
 
@@ -135,16 +150,24 @@ export interface ShotEstimate {
 }
 
 export function estimateShot(shot: Shot, c: Conditions, settings: Settings): ShotEstimate {
-  const f = settings.factors;
+  const f = settings.factors ?? DEFAULT_FACTORS;
   const { head } = windComponents(c);
-  const k = head >= 0 ? f.headwindPctPerMph : f.tailwindPctPerMph;
-  const sens = shot.windSensitivity ?? TRAJECTORY_WIND[shot.trajectory];
+  const k =
+    head >= 0
+      ? finiteOr(f.headwindPctPerMph, DEFAULT_FACTORS.headwindPctPerMph)
+      : finiteOr(f.tailwindPctPerMph, DEFAULT_FACTORS.tailwindPctPerMph);
+  const sens = shot.windSensitivity ?? TRAJECTORY_WIND[shot.trajectory] ?? TRAJECTORY_WIND.mid;
   const windPct = clamp(-head * k * sens, -40, 40);
-  const tempPct = (settings.tempF - 70) * f.tempPctPerDegF;
-  const altPct = (settings.courseAltFt / 1000) * f.altPctPer1000Ft;
-  const effectiveCarry = shot.carry * (1 + windPct / 100) * (1 + tempPct / 100) * (1 + altPct / 100);
-  const diff = effectiveCarry - c.pinDistance;
-  const score = diff >= 0 ? diff * f.overshootPenalty : -diff;
+  const tempPct =
+    (finiteOr(settings.tempF, BASELINE_TEMP_F) - BASELINE_TEMP_F) *
+    finiteOr(f.tempPctPerDegF, DEFAULT_FACTORS.tempPctPerDegF);
+  const altPct =
+    (finiteOr(settings.courseAltFt, 0) / 1000) *
+    finiteOr(f.altPctPer1000Ft, DEFAULT_FACTORS.altPctPer1000Ft);
+  const effectiveCarry =
+    finiteOr(shot.carry, 0) * (1 + windPct / 100) * (1 + tempPct / 100) * (1 + altPct / 100);
+  const diff = effectiveCarry - finiteOr(c.pinDistance, 0);
+  const score = diff >= 0 ? diff * finiteOr(f.overshootPenalty, DEFAULT_FACTORS.overshootPenalty) : -diff;
   return { shot, effectiveCarry, diff, score, windPct };
 }
 

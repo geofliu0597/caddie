@@ -1,12 +1,14 @@
 import type { ChangeEvent } from 'react';
 import type { Factors, UnitsSystem } from '../types';
 import {
+  BASELINE_TEMP_F,
   DEFAULT_FACTORS,
   KMH_PER_MPH,
   METERS_PER_FOOT,
   TEMP_UNIT,
   WIND_UNIT,
   altFromDisplay,
+  finiteOr,
   tempFromDisplay,
 } from '../lib/golf';
 import { STATE_VERSION, freshState, useApp } from '../lib/store';
@@ -90,8 +92,15 @@ function ConditionChips({
 export function SettingsScreen() {
   const { state, dispatch } = useApp();
   const s = state.settings;
-  const sys: UnitsSystem = s.unitsSystem;
-  const f = s.factors;
+  const sys: UnitsSystem = s.unitsSystem === 'imperial' ? 'imperial' : 'metric';
+  // Guarded reads: even if a factor is missing/NaN, the sliders always get a number.
+  const f = {
+    headwindPctPerMph: finiteOr(s.factors?.headwindPctPerMph, DEFAULT_FACTORS.headwindPctPerMph),
+    tailwindPctPerMph: finiteOr(s.factors?.tailwindPctPerMph, DEFAULT_FACTORS.tailwindPctPerMph),
+    tempPctPerDegF: finiteOr(s.factors?.tempPctPerDegF, DEFAULT_FACTORS.tempPctPerDegF),
+    altPctPer1000Ft: finiteOr(s.factors?.altPctPer1000Ft, DEFAULT_FACTORS.altPctPer1000Ft),
+    overshootPenalty: finiteOr(s.factors?.overshootPenalty, DEFAULT_FACTORS.overshootPenalty),
+  };
   const setS = (patch: Partial<typeof s>) => dispatch({ type: 'setSettings', patch });
   const setF = (patch: Partial<Factors>) => dispatch({ type: 'setFactors', patch });
 
@@ -189,17 +198,17 @@ export function SettingsScreen() {
         </p>
         <ConditionChips
           label={`Temperature (${TEMP_UNIT(sys)})`}
-          value={s.tempF}
+          value={finiteOr(s.tempF, BASELINE_TEMP_F)}
           options={
             sys === 'metric'
               ? [5, 10, 15, 20, 25, 30, 35, 40].map((c) => ({ v: tempFromDisplay(c, sys), label: `${c}°C` }))
-              : [40, 50, 60, 70, 80, 90, 100].map((t) => ({ v: t, label: `${t}°F` }))
+              : [40, 50, 60, 68, 80, 90, 100].map((t) => ({ v: t, label: `${t}°F` }))
           }
           onSelect={(v) => setS({ tempF: v })}
         />
         <ConditionChips
           label={`Course altitude (${sys === 'metric' ? 'm' : 'ft'} above sea level)`}
-          value={s.courseAltFt}
+          value={finiteOr(s.courseAltFt, 0)}
           options={
             sys === 'metric'
               ? [0, 300, 750, 1500].map((m) => ({
@@ -254,7 +263,7 @@ export function SettingsScreen() {
           />
           <FactorRow
             label="Temperature"
-            hint={`Per ${TEMP_UNIT(sys)} away from the 70°F (21°C) baseline. Cold air = shorter ball.`}
+            hint={`Per ${TEMP_UNIT(sys)} away from the 20°C (68°F) baseline. Cold air = shorter ball.`}
             value={perTemp(f.tempPctPerDegF)}
             min={0}
             max={sys === 'metric' ? 0.72 : 0.4}

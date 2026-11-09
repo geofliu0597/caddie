@@ -2,12 +2,14 @@ import type { ReactNode } from 'react';
 import type { Conditions } from '../types';
 import { useApp } from '../lib/store';
 import {
+  BASELINE_TEMP_F,
   SHAPE_LABEL,
   TRAJECTORY_LABEL,
   WIND_UNIT,
   altToDisplay,
   clamp,
   crossAimYards,
+  finiteOr,
   fmtDist,
   fromDisplayYards,
   rankShots,
@@ -60,14 +62,14 @@ export function PlayScreen() {
   const { state, dispatch } = useApp();
   const c = state.conditions;
   const s = state.settings;
-  const u = s.units;
+  const u = s.units === 'm' ? 'm' : 'yd';
   const setCond = (patch: Partial<Conditions>) => dispatch({ type: 'setConditions', patch });
 
-  const disp = Math.round(toDisplayYards(c.pinDistance, u));
+  const disp = Math.round(toDisplayYards(finiteOr(c.pinDistance, 0), u));
   const setDisp = (v: number) => setCond({ pinDistance: Math.max(0, Math.round(fromDisplayYards(v, u))) });
 
-  const sys = s.unitsSystem;
-  const windDisp = Math.round(windToDisplay(c.windSpeed, sys));
+  const sys = s.unitsSystem === 'imperial' ? 'imperial' : 'metric';
+  const windDisp = Math.round(windToDisplay(finiteOr(c.windSpeed, 0), sys));
   const setWind = (dispV: number) =>
     setCond({ windSpeed: clamp(windFromDisplay(dispV, sys), 0, 40) });
 
@@ -78,13 +80,15 @@ export function PlayScreen() {
   const longestShort = [...ranked].filter((r) => r.diff <= 0).sort((a, b) => b.diff - a.diff)[0];
   const shortestLong = [...ranked].filter((r) => r.diff > 0).sort((a, b) => a.diff - b.diff)[0];
 
+  const tempF = finiteOr(s.tempF, BASELINE_TEMP_F);
+  const altFt = finiteOr(s.courseAltFt, 0);
   const adjustBits: string[] = [];
-  if (c.windSpeed >= 2) adjustBits.push(windLabel(c, sys));
-  if (s.tempF !== 70)
-    adjustBits.push(`${Math.round(tempToDisplay(s.tempF, sys))}°${sys === 'metric' ? 'C' : 'F'}`);
-  if (s.courseAltFt !== 0)
+  if (finiteOr(c.windSpeed, 0) >= 2) adjustBits.push(windLabel(c, sys));
+  if (tempF !== BASELINE_TEMP_F)
+    adjustBits.push(`${Math.round(tempToDisplay(tempF, sys))}°${sys === 'metric' ? 'C' : 'F'}`);
+  if (altFt !== 0)
     adjustBits.push(
-      `${Math.round(altToDisplay(s.courseAltFt, sys)).toLocaleString()} ${sys === 'metric' ? 'm' : 'ft'} elev.`,
+      `${Math.round(altToDisplay(altFt, sys)).toLocaleString()} ${sys === 'metric' ? 'm' : 'ft'} elev.`,
     );
 
   return (

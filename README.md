@@ -42,8 +42,8 @@ caches the app shell.
 ## The distance model
 
 Your arsenal's stock carries are defined under **standard conditions**: no wind,
-70°F, sea level. Each shot's stock carry is scaled by the conditions, and the
-app ranks shots by how close they land to your number:
+20°C (68°F), sea level. Each shot's stock carry is scaled by the conditions, and
+the app ranks shots by how close they land to your number:
 
 - **The number to cover** = the distance you enter on the Play tab. A
   slope-adjusted laser reading is ideal — elevation is already baked into it,
@@ -69,7 +69,7 @@ Tuning factors (all adjustable in Settings → Model tuning):
 |---|---|---|
 | Headwind | 0.8%/mph | distance lost per mph into the wind |
 | Tailwind | 0.45%/mph | distance gained per mph behind |
-| Temperature | 0.15%/°F | per °F away from 70°F |
+| Temperature | 0.15%/°F | per °F away from 68°F (20°C) |
 | Altitude | 2%/1000 ft | distance gained per 1,000 ft above sea level |
 | Overshoot penalty | 1.5× | ranking weight for flying past the number |
 
