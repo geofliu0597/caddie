@@ -1,6 +1,16 @@
 // Minimal offline-first service worker: cache app shell + runtime stale-while-revalidate.
-const CACHE = 'caddie-v1';
-const CORE = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
+const CACHE = 'caddie-v2';
+const CORE = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './icon.svg',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-maskable-192.png',
+  './icon-maskable-512.png',
+  './apple-touch-icon.png',
+];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(

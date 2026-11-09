@@ -32,9 +32,13 @@ npm run build    # type-checks and builds to dist/
 ## Installing on your phone
 
 - **Android/Chrome:** open the deployed URL → menu → "Add to Home screen".
-- **iOS/Safari:** Share → "Add to Home Screen". (The icon is SVG; drop a 180px
-  `apple-touch-icon.png` into `public/` and reference it in `index.html` if you
-  want a nicer iOS icon.)
+- **iOS/Safari:** Share → "Add to Home Screen".
+
+The icon artwork lives in `public/icon.svg` (rounded, for browser tabs) with
+full-bleed PNG variants generated from it — `icon-192/512.png`,
+`icon-maskable-192/512.png` (artwork scaled into the launcher's crop-safe
+zone) and `apple-touch-icon.png` (full square, iOS rounds it itself). After
+editing the SVG, re-export the PNGs at those sizes to keep them in sync.
 
 Once installed it runs fullscreen and works with no signal — the service worker
 caches the app shell.
