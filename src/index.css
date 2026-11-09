@@ -1,18 +1,6 @@
-@import "tailwindcss";
-
-@theme {
-  --color-turf-50: #f0f7f2;
-  --color-turf-100: #dcecdf;
-  --color-turf-200: #b9d6c1;
-  --color-turf-300: #8ab497;
-  --color-turf-400: #5a8265;
-  --color-turf-500: #3e5a45;
-  --color-turf-600: #2a3d2e;
-  --color-turf-700: #1c2a1f;
-  --color-turf-800: #131c15;
-  --color-turf-900: #0c120d;
-  --color-turf-950: #070b08;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   color-scheme: dark;
@@ -22,11 +10,11 @@ html,
 body,
 #root {
   min-height: 100%;
-  background-color: var(--color-turf-950);
+  background-color: #070b08;
 }
 
 body {
-  color: var(--color-turf-50);
+  color: #f0f7f2;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
