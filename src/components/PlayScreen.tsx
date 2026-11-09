@@ -3,18 +3,15 @@ import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import type { Conditions } from '../types';
 import { useApp } from '../lib/store';
 import {
-  BASELINE_TEMP_F,
   SHAPE_LABEL,
   TRAJECTORY_LABEL,
   WIND_UNIT,
-  altToDisplay,
   clamp,
   crossAimYards,
   finiteOr,
   fmtDist,
   fromDisplayYards,
   rankShots,
-  tempToDisplay,
   toDisplayYards,
   windComponents,
   windFromDisplay,
@@ -82,20 +79,8 @@ export function PlayScreen() {
   const longestShort = [...ranked].filter((r) => r.diff <= 0).sort((a, b) => b.diff - a.diff)[0];
   const shortestLong = [...ranked].filter((r) => r.diff > 0).sort((a, b) => a.diff - b.diff)[0];
 
-  const tempF = finiteOr(s.tempF, BASELINE_TEMP_F);
-  const altFt = finiteOr(s.courseAltFt, 0);
   const slopeDeg = finiteOr(c.slopeDeg, 0);
   const windParts = windLabel(c, sys);
-  const adjustBits: string[] = [];
-  if (finiteOr(c.windSpeed, 0) >= 2) adjustBits.push(windParts.join(' + '));
-  if (tempF !== BASELINE_TEMP_F)
-    adjustBits.push(`${Math.round(tempToDisplay(tempF, sys))}°${sys === 'metric' ? 'C' : 'F'}`);
-  if (altFt !== 0)
-    adjustBits.push(
-      `${Math.round(altToDisplay(altFt, sys)).toLocaleString()} ${sys === 'metric' ? 'm' : 'ft'} elev.`,
-    );
-  if (slopeDeg !== 0)
-    adjustBits.push(`${Math.abs(Math.round(slopeDeg))}° ${slopeDeg > 0 ? 'uphill' : 'downhill'}`);
 
   // ---- Distance & wind dock -------------------------------------------------
   // A bottom sheet: drag up on the handle to reveal the inputs, drag down
@@ -156,10 +141,6 @@ export function PlayScreen() {
       <div className="space-y-4 pb-44">
         <section className="space-y-3">
           <SectionTitle>Your options</SectionTitle>
-          <p className="-mt-1 text-xs text-turf-400">
-            Covering {disp} {u}
-            {adjustBits.length > 0 && <> · adjusting for {adjustBits.join(' · ')}</>}
-          </p>
           {state.shots.length === 0 && (
             <p className="rounded-xl bg-turf-800 p-4 text-sm text-turf-300">
               Your arsenal is empty — add shots in the Arsenal tab.
@@ -269,7 +250,7 @@ export function PlayScreen() {
               <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-turf-600" />
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-semibold tabular-nums text-turf-100">
-                  {disp} {u} · {windDisp} {WIND_UNIT(sys)}
+                  {disp} {u} · {windDisp} {WIND_UNIT(sys)} · {Math.abs(Math.round(slopeDeg))}°{slopeDeg > 0 ? ' uphill' : slopeDeg < 0 ? ' downhill' : ''}
                 </span>
                 <svg
                   viewBox="0 0 24 24"
@@ -354,8 +335,9 @@ export function PlayScreen() {
                     <SlopeControl value={slopeDeg} onChange={(deg) => setCond({ slopeDeg: deg })} />
                   </div>
                   <p className="mt-2 text-xs text-turf-400">
-                    Tilt of the ground from ball to green. Keep at 0° with a slope-adjusted laser —
-                    for GPS or feel numbers.
+                    The tilt under your feet — an uphill stance adds loft and shortens the shot, a
+                    downhill stance delofts and lengthens it. Your laser can't see this one: set it
+                    whenever you're standing on a slope.
                   </p>
                 </section>
                 </div>

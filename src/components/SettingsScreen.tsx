@@ -195,8 +195,7 @@ export function SettingsScreen() {
         <SectionTitle>Round conditions</SectionTitle>
         <p className="mt-1 text-xs text-turf-400">
           Set once when you arrive — these change how far your shots fly, not the number you cover.
-          Slope to the green is entered per shot on the Play tab (keep it at 0° if your laser
-          slope-adjusts).
+          The stance slope under your feet is entered per shot on the Play tab.
         </p>
         <ConditionChips
           label={`Temperature (${TEMP_UNIT(sys)})`}
@@ -285,7 +284,7 @@ export function SettingsScreen() {
           />
           <FactorRow
             label="Slope"
-            hint="Carry change per degree of uphill ground to the green — uphill lands sooner (shorter), downhill later."
+            hint="Carry change per degree of uphill stance slope — an uphill lie adds loft (shorter), a downhill lie delofts (longer)."
             value={f.slopePctPerDeg}
             min={0}
             max={3}

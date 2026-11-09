@@ -27,7 +27,7 @@ export interface Conditions {
   windSpeed: number;
   /** Direction the wind blows TOWARD, degrees. 0 = toward the green (tailwind), 90 = left-to-right, 180 = back at you (headwind). */
   windDir: number;
-  /** Slope from ball to green, degrees. + = uphill (green higher, plays shorter), − = downhill. Leave 0 with a slope-adjusted laser. */
+  /** Slope of the ground under the golfer's feet, degrees. + = uphill stance (adds loft, plays shorter), − = downhill (delofts, plays longer). */
   slopeDeg: number;
 }
 

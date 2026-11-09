@@ -8,8 +8,9 @@ import type { Conditions, Factors, Settings, Shot, Trajectory, UnitsSystem } fro
  *
  * On the course:
  *  - The distance to cover is entered directly — a slope-adjusted laser
- *    reading is ideal, since elevation is already baked into that number.
- *    The app never adjusts for slope itself, so nothing is double-counted.
+ *    reading is ideal, since target elevation is already baked into that
+ *    number. STANCE SLOPE (the tilt under your feet, which a laser can't
+ *    see) is a separate per-shot input that scales every shot's flight.
  *  - WIND changes how far each shot flies: a percentage scaled by trajectory
  *    (high-flying shots are affected more than punch shots).
  *  - TEMPERATURE and COURSE ALTITUDE are per-round settings (Settings tab)
@@ -169,8 +170,8 @@ export function estimateShot(shot: Shot, c: Conditions, settings: Settings): Sho
   const altPct =
     (finiteOr(settings.courseAltFt, 0) / 1000) *
     finiteOr(f.altPctPer1000Ft, DEFAULT_FACTORS.altPctPer1000Ft);
-  // Uphill (+slopeDeg) makes the ball land on rising ground — shorter carry;
-  // downhill lets it run past the flat-carry point — longer.
+  // Stance slope under the golfer's feet: an uphill lie tilts the body back
+  // and adds effective loft — shorter carry; a downhill lie delofts — longer.
   const slopePct =
     -finiteOr(c.slopeDeg, 0) * finiteOr(f.slopePctPerDeg, DEFAULT_FACTORS.slopePctPerDeg);
   const effectiveCarry =
