@@ -33,17 +33,9 @@ export interface Conditions {
    * Which miss the golfer prefers when no shot lands exact: 'short' penalizes
    * overshoots when ranking (default — trouble long of the green), 'long'
    * penalizes undershoots instead (trouble short, e.g. a front bunker). The
-   * penalty size is the Overshoot penalty factor in Settings.
+   * other side is penalized at a fixed 2× (OVERSHOOT_PENALTY in golf.ts).
    */
   missPref: 'short' | 'long';
-}
-
-/** Tunable constants for the model. See README for what each does. */
-export interface Factors {
-  tempPctPerDegF: number;
-  altPctPer1000Ft: number;
-  /** Ranking penalty on the side the golfer doesn't want to miss on — which side flips with the conditions' missPref. */
-  overshootPenalty: number;
 }
 
 /** Units for wind / temperature / altitude display. Metric is the default. */
@@ -59,7 +51,6 @@ export interface Settings {
   courseAltFt: number;
   /** Day form, % — how you're striking it today vs. the baseline arsenal numbers. −20..+20. */
   formPct: number;
-  factors: Factors;
 }
 
 export interface AppState {

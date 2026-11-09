@@ -76,16 +76,20 @@ default** (°C, km/h, m) with an imperial toggle in Settings; golf distances kee
 their own **yards-by-default** toggle, since golf is played in yards almost
 everywhere.
 
-Tuning factors (all adjustable in Settings → Model tuning):
+Every scaling coefficient is a **fixed model constant**, not a tunable —
+instrumented data clusters tightly around these values, so there are no
+sliders to mis-tune:
 
-| Factor | Default | Meaning |
+| Constant | Value | Basis |
 |---|---|---|
-| Temperature | 0.15%/°F | per °F away from 68°F (20°C) |
-| Altitude | 2%/1000 ft | distance gained per 1,000 ft above sea level |
-| Overshoot penalty | 1.5× | ranking penalty on the side you don't want to miss (which side is set on the Play tab) |
+| Wind | −0.7%/mph headwind, +0.45%/mph tailwind, × trajectory | Trackman / Titleist launch-monitor data |
+| Temperature | 0.10%/°F from the 68°F (20°C) baseline | USGA & Titleist robot tests ~1–2 yds per 10°F; Trackman's 0.15%/°F is the high end |
+| Altitude | 1.0%/1,000 ft above sea level | Titleist ~0.8%, Trackman-derived ~0.9%, sim calculators ~1% |
+| Stance slope | +2.5% peak at 5° uphill, −1.2%/° downhill, clamp −15%…+4% | MyGolfSpy + Penn State GCQuad and Trackman slope tests |
+| Miss penalty | 2× on the side you don't want to miss | flying the target costs about twice what coming up short does |
 
-These are caddie heuristics, not physics — play a few rounds, compare results,
-tune them to your game.
+Humidity and barometric pressure change carry by well under half a percent —
+negligible, and not modeled.
 
 Wind coefficients are fixed model constants, not tunables: a mid-trajectory
 shot loses ~0.7% of carry per mph of headwind and gains ~0.45% per mph of

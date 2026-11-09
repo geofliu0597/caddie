@@ -1,14 +1,6 @@
 import type { ChangeEvent } from 'react';
-import type { Factors, UnitsSystem } from '../types';
-import {
-  BASELINE_TEMP_F,
-  DEFAULT_FACTORS,
-  METERS_PER_FOOT,
-  TEMP_UNIT,
-  altFromDisplay,
-  finiteOr,
-  tempFromDisplay,
-} from '../lib/golf';
+import type { UnitsSystem } from '../types';
+import { BASELINE_TEMP_F, TEMP_UNIT, altFromDisplay, finiteOr, tempFromDisplay } from '../lib/golf';
 import { STATE_VERSION, freshState, useApp } from '../lib/store';
 import { InfoTip } from './InfoTip';
 
@@ -105,22 +97,7 @@ export function SettingsScreen() {
   const { state, dispatch } = useApp();
   const s = state.settings;
   const sys: UnitsSystem = s.unitsSystem === 'imperial' ? 'imperial' : 'metric';
-  // Guarded reads: even if a factor is missing/NaN, the sliders always get a number.
-  const f = {
-    tempPctPerDegF: finiteOr(s.factors?.tempPctPerDegF, DEFAULT_FACTORS.tempPctPerDegF),
-    altPctPer1000Ft: finiteOr(s.factors?.altPctPer1000Ft, DEFAULT_FACTORS.altPctPer1000Ft),
-    overshootPenalty: finiteOr(s.factors?.overshootPenalty, DEFAULT_FACTORS.overshootPenalty),
-  };
   const setS = (patch: Partial<typeof s>) => dispatch({ type: 'setSettings', patch });
-  const setF = (patch: Partial<Factors>) => dispatch({ type: 'setFactors', patch });
-
-  // Factor conversions: the model stores per-°F / per-1000 ft; sliders
-  // speak the active conditions unit so tuning stays intuitive.
-  const F_PER_C = 9 / 5;
-  const perTemp = (v: number) => (sys === 'metric' ? v * F_PER_C : v);
-  const perTempApply = (v: number) => (sys === 'metric' ? v / F_PER_C : v);
-  const perAlt = (v: number) => (sys === 'metric' ? v / METERS_PER_FOOT : v);
-  const perAltApply = (v: number) => (sys === 'metric' ? v * METERS_PER_FOOT : v);
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -213,7 +190,7 @@ export function SettingsScreen() {
         </div>
         <ConditionChips
           label={`Temperature (${TEMP_UNIT(sys)})`}
-          info="Distances are defined at the 20°C (68°F) baseline. Colder air is denser and the ball flies shorter; warmer air flies farther — the Temperature factor in Model tuning sets how much."
+          info="Distances are defined at the 20°C (68°F) baseline. Colder air is denser and the ball flies shorter; warmer air flies farther — built-in constants set how much: ~1% of carry per 10°F (≈2% per 10°C)."
           value={finiteOr(s.tempF, BASELINE_TEMP_F)}
           options={
             sys === 'metric'
@@ -224,7 +201,7 @@ export function SettingsScreen() {
         />
         <ConditionChips
           label={`Course altitude (${sys === 'metric' ? 'm' : 'ft'} above sea level)`}
-          info="Sea level is the baseline. Thinner air up high means less drag, so the ball flies farther — the Altitude factor in Model tuning sets how much."
+          info="Sea level is the baseline. Thinner air up high means less drag, so the ball flies farther — built-in constants set how much: ~1% of carry per 1,000 ft (≈3% per 1,000 m)."
           value={finiteOr(s.courseAltFt, 0)}
           options={
             sys === 'metric'
@@ -249,60 +226,6 @@ export function SettingsScreen() {
             step={1}
             fmt={(v) => `${v > 0 ? '+' : ''}${Math.round(v)}%`}
             onChange={(v) => setS({ formPct: v })}
-          />
-        </div>
-      </section>
-
-      {/* Model tuning */}
-      <section className="rounded-2xl bg-turf-800 p-4">
-        <div className="flex items-center justify-between">
-          <SectionTitle>Model tuning</SectionTitle>
-          <div className="flex items-center gap-3">
-            <InfoTip>
-              <p>
-                These are heuristics, not physics. Play a few rounds, compare what actually
-                happened, and tune them to your game. Values follow your conditions units.
-              </p>
-            </InfoTip>
-            <button
-              type="button"
-              onClick={() => setF({ ...DEFAULT_FACTORS })}
-              className="text-xs font-semibold text-lime-300 underline"
-            >
-              Reset to defaults
-            </button>
-          </div>
-        </div>
-        <div className="mt-2 divide-y divide-turf-700">
-          <FactorRow
-            label="Temperature"
-            hint={`Per ${TEMP_UNIT(sys)} away from the 20°C (68°F) baseline. Cold air = shorter ball.`}
-            value={perTemp(f.tempPctPerDegF)}
-            min={0}
-            max={sys === 'metric' ? 0.72 : 0.4}
-            step={sys === 'metric' ? 0.02 : 0.01}
-            fmt={(v) => `${v.toFixed(2)}% / ${TEMP_UNIT(sys)}`}
-            onChange={(v) => setF({ tempPctPerDegF: perTempApply(v) })}
-          />
-          <FactorRow
-            label="Altitude"
-            hint={sys === 'metric' ? 'Distance gained per 1,000 m above sea level.' : 'Distance gained per 1,000 ft above sea level.'}
-            value={perAlt(f.altPctPer1000Ft)}
-            min={0}
-            max={sys === 'metric' ? 13.1 : 4}
-            step={sys === 'metric' ? 0.3 : 0.1}
-            fmt={(v) => `${v.toFixed(1)}% / 1000 ${sys === 'metric' ? 'm' : 'ft'}`}
-            onChange={(v) => setF({ altPctPer1000Ft: perAltApply(v) })}
-          />
-          <FactorRow
-            label="Overshoot penalty"
-            hint="Ranking penalty on the side you don't want to miss — which side is set by Miss preference on the Play tab."
-            value={f.overshootPenalty}
-            min={1}
-            max={3}
-            step={0.1}
-            fmt={(v) => `${v.toFixed(1)}×`}
-            onChange={(v) => setF({ overshootPenalty: v })}
           />
         </div>
       </section>

@@ -391,11 +391,11 @@ export function PlayScreen() {
                       <p>
                         Where you'd rather miss on an imperfect strike — trouble long of the green →
                         Undershoot; bunker guarding the front → Overshoot. The other side is
-                        penalized by the Overshoot penalty in Settings.
+                        penalized at double weight — flying the target costs twice what coming up
+                        short does.
                       </p>
                       <p className="mt-1">
-                        Example: at a 2× penalty, flying 5 yd past (score 10) loses to landing 9 yd
-                        short (score 9); at 1.5× the past shot wins (7.5 vs 9).
+                        Example: flying 5 yd past scores 10 and loses to landing 9 yd short (9).
                       </p>
                     </InfoTip>
                   </div>

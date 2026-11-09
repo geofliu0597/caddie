@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
 import type { Dispatch, ReactNode } from 'react';
-import type { AppState, Conditions, Factors, Settings, Shape, Shot, Trajectory } from '../types';
-import { BASELINE_TEMP_F, DEFAULT_FACTORS, clamp, finiteOr } from './golf';
+import type { AppState, Conditions, Settings, Shape, Shot, Trajectory } from '../types';
+import { BASELINE_TEMP_F, clamp, finiteOr } from './golf';
 
 const STORAGE_KEY = 'caddie-state-v1';
 export const STATE_VERSION = 1;
@@ -52,7 +52,6 @@ export function freshState(): AppState {
       tempF: BASELINE_TEMP_F,
       courseAltFt: 0,
       formPct: 0,
-      factors: { ...DEFAULT_FACTORS },
     },
   };
 }
@@ -60,7 +59,6 @@ export function freshState(): AppState {
 export type AppAction =
   | { type: 'setConditions'; patch: Partial<Conditions> }
   | { type: 'setSettings'; patch: Partial<Settings> }
-  | { type: 'setFactors'; patch: Partial<Factors> }
   | { type: 'upsertShot'; shot: Shot }
   | { type: 'deleteShot'; id: string }
   | { type: 'deleteSampleShots' }
@@ -72,11 +70,6 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, conditions: { ...state.conditions, ...action.patch } };
     case 'setSettings':
       return { ...state, settings: { ...state.settings, ...action.patch } };
-    case 'setFactors':
-      return {
-        ...state,
-        settings: { ...state.settings, factors: { ...state.settings.factors, ...action.patch } },
-      };
     case 'upsertShot': {
       const exists = state.shots.some((s) => s.id === action.shot.id);
       return {
@@ -135,7 +128,6 @@ export function normalizeState(input: unknown): AppState {
   if (!Array.isArray(raw.shots)) return base;
   const c = (raw.conditions ?? {}) as Partial<Conditions>;
   const st = (raw.settings ?? {}) as Partial<Settings>;
-  const f = (st.factors ?? {}) as Partial<Factors>;
   const tempF = finiteOr(st.tempF, BASELINE_TEMP_F);
   return {
     version: STATE_VERSION,
@@ -144,9 +136,10 @@ export function normalizeState(input: unknown): AppState {
       pinDistance: clamp(finiteOr(c.pinDistance, base.conditions.pinDistance), 0, 400),
       windSpeed: clamp(finiteOr(c.windSpeed, 0), 0, 40),
       windDir: ((finiteOr(c.windDir, 0) % 360) + 360) % 360,
-      // Snap to the slider's 5° notches — values from older saves get pulled
-      // onto one so the slider, graphic and model always agree.
-      slopeDeg: clamp(Math.round(finiteOr(c.slopeDeg, 0) / 5) * 5, -30, 30),
+      // Snap to the slider's 5° notches (±20° — the model caps out inside
+      // that on both sides) — values from older saves get pulled onto one so
+      // the slider, graphic and model always agree.
+      slopeDeg: clamp(Math.round(finiteOr(c.slopeDeg, 0) / 5) * 5, -20, 20),
       // Anything other than 'long' (including missing, from older saves) ranks
       // with the default preference: come up short.
       missPref: c.missPref === 'long' ? 'long' : 'short',
@@ -159,11 +152,6 @@ export function normalizeState(input: unknown): AppState {
       tempF: tempF === 70 ? BASELINE_TEMP_F : tempF,
       courseAltFt: finiteOr(st.courseAltFt, 0),
       formPct: clamp(finiteOr(st.formPct, 0), -20, 20),
-      factors: {
-        tempPctPerDegF: finiteOr(f.tempPctPerDegF, DEFAULT_FACTORS.tempPctPerDegF),
-        altPctPer1000Ft: finiteOr(f.altPctPer1000Ft, DEFAULT_FACTORS.altPctPer1000Ft),
-        overshootPenalty: finiteOr(f.overshootPenalty, DEFAULT_FACTORS.overshootPenalty),
-      },
     },
   };
 }

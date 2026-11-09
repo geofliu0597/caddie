@@ -1,10 +1,10 @@
 import { useRef } from 'react';
 import { clamp, finiteOr } from '../lib/golf';
 
-const MIN = -30;
-const MAX = 30;
+const MIN = -20;
+const MAX = 20;
 const STEP = 5;
-const TICKS = (MAX - MIN) / STEP + 1; // 13 notches
+const TICKS = (MAX - MIN) / STEP + 1; // 9 notches
 
 /**
  * Pointer-driven notched slider. Replaces the native <input type="range">:
@@ -68,7 +68,7 @@ function SlopeSlider({ value, onChange }: { value: number; onChange: (v: number)
       {Array.from({ length: TICKS }, (_, i) => (
         <div
           key={i}
-          className={`absolute top-1/2 w-px -translate-y-1/2 ${i === 6 ? 'h-3 bg-turf-400' : 'h-2 bg-turf-500'}`}
+          className={`absolute top-1/2 w-px -translate-y-1/2 ${i === 4 ? 'h-3 bg-turf-400' : 'h-2 bg-turf-500'}`}
           style={{ left: `${(i / (TICKS - 1)) * 100}%` }}
         />
       ))}
@@ -141,8 +141,8 @@ export function SlopeControl({
       </div>
       <SlopeSlider value={deg} onChange={onChange} />
       <div className="mt-0.5 flex justify-between text-[11px] text-turf-400">
-        <span>30° downhill</span>
-        <span>30° uphill</span>
+        <span>20° downhill</span>
+        <span>20° uphill</span>
       </div>
     </div>
   );

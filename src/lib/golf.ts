@@ -1,4 +1,4 @@
-import type { Conditions, Factors, Settings, Shot, Trajectory, UnitsSystem } from '../types';
+import type { Conditions, Settings, Shot, Trajectory, UnitsSystem } from '../types';
 
 /**
  * The plays-like model.
@@ -22,11 +22,26 @@ import type { Conditions, Factors, Settings, Shot, Trajectory, UnitsSystem } fro
  * side the golfer doesn't want to miss on penalized (default: overshoots —
  * flying the green is worse; the dock's miss preference flips which side).
  */
-export const DEFAULT_FACTORS: Factors = {
-  tempPctPerDegF: 0.15,
-  altPctPer1000Ft: 2,
-  overshootPenalty: 1.5,
-};
+/**
+ * Temperature and altitude sensitivity of carry, % per unit — fixed model
+ * constants, not user-tunable. Instrumented data clusters around these:
+ *  - Temperature (air-density drag + ball-core elasticity): USGA robot tests
+ *    ~1–2 yds per 10°F, Titleist robot tests (balls soaked at different
+ *    temps) ~1.5–2 yds per 10°F on every club, Trackman ~0.15%/°F (the high
+ *    end). 0.10%/°F is the mid-cluster: ~1% per 10°F.
+ *  - Altitude: Titleist ~0.8%/1000 ft (≈2 yds on a driver), Trackman-derived
+ *    ~0.9%, sim calculators ~1%. The old "10% per 5,000 ft" rule is ~2× the
+ *    instrumented data.
+ */
+export const TEMP_PCT_PER_DEG_F = 0.1;
+export const ALT_PCT_PER_1000_FT = 1;
+
+/**
+ * Ranking penalty on the side the golfer doesn't want to miss on (which side
+ * flips with the conditions' miss preference) — fixed at 2×: flying the
+ * target costs about twice what coming up short does.
+ */
+export const OVERSHOOT_PENALTY = 2;
 
 /**
  * Wind sensitivity of a normal ball flight, % of carry per mph. Fixed model
@@ -196,17 +211,13 @@ export interface ShotEstimate {
 }
 
 export function estimateShot(shot: Shot, c: Conditions, settings: Settings): ShotEstimate {
-  const f = settings.factors ?? DEFAULT_FACTORS;
   const { head } = windComponents(c);
   const k = head >= 0 ? HEADWIND_PCT_PER_MPH : TAILWIND_PCT_PER_MPH;
   const sens = shot.windSensitivity ?? TRAJECTORY_WIND[shot.trajectory] ?? TRAJECTORY_WIND.mid;
   const windPct = clamp(-head * k * sens, -40, 40);
   const tempPct =
-    (finiteOr(settings.tempF, BASELINE_TEMP_F) - BASELINE_TEMP_F) *
-    finiteOr(f.tempPctPerDegF, DEFAULT_FACTORS.tempPctPerDegF);
-  const altPct =
-    (finiteOr(settings.courseAltFt, 0) / 1000) *
-    finiteOr(f.altPctPer1000Ft, DEFAULT_FACTORS.altPctPer1000Ft);
+    (finiteOr(settings.tempF, BASELINE_TEMP_F) - BASELINE_TEMP_F) * TEMP_PCT_PER_DEG_F;
+  const altPct = (finiteOr(settings.courseAltFt, 0) / 1000) * ALT_PCT_PER_1000_FT;
   // Stance slope under the golfer's feet (see slopeCarryPct): uphill adds
   // loft — about the same carry at mild slopes, ballooning past 10°; downhill
   // delofts — carry shrinks, rollout (not modeled) grows.
@@ -224,9 +235,9 @@ export function estimateShot(shot: Shot, c: Conditions, settings: Settings): Sho
   const diff = effectiveCarry - finiteOr(c.pinDistance, 0);
   // Miss preference: by default overshoots are penalized (trouble long of the
   // green is the common case). 'long' flips it — undershoots get penalized
-  // instead (e.g. a bunker guarding the front). Either way the penalty size
-  // is the tunable overshoot factor.
-  const penalty = finiteOr(f.overshootPenalty, DEFAULT_FACTORS.overshootPenalty);
+  // instead (e.g. a bunker guarding the front). Either way the other side
+  // pays the fixed 2× miss penalty.
+  const penalty = OVERSHOOT_PENALTY;
   const score =
     c.missPref !== 'long'
       ? diff >= 0
