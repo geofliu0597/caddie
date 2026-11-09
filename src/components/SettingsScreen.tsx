@@ -1,6 +1,14 @@
 import type { ChangeEvent } from 'react';
-import type { Factors } from '../types';
-import { DEFAULT_FACTORS } from '../lib/golf';
+import type { Factors, UnitsSystem } from '../types';
+import {
+  DEFAULT_FACTORS,
+  KMH_PER_MPH,
+  METERS_PER_FOOT,
+  TEMP_UNIT,
+  WIND_UNIT,
+  altFromDisplay,
+  tempFromDisplay,
+} from '../lib/golf';
 import { STATE_VERSION, freshState, useApp } from '../lib/store';
 
 function SectionTitle({ children }: { children: string }) {
@@ -64,7 +72,7 @@ function ConditionChips({
       <div className="mt-2 flex flex-wrap gap-2">
         {options.map((o) => (
           <button
-            key={o.v}
+            key={o.label}
             type="button"
             onClick={() => onSelect(o.v)}
             className={`h-9 rounded-full px-3 text-sm font-medium ${
@@ -82,9 +90,20 @@ function ConditionChips({
 export function SettingsScreen() {
   const { state, dispatch } = useApp();
   const s = state.settings;
+  const sys: UnitsSystem = s.unitsSystem;
   const f = s.factors;
   const setS = (patch: Partial<typeof s>) => dispatch({ type: 'setSettings', patch });
   const setF = (patch: Partial<Factors>) => dispatch({ type: 'setFactors', patch });
+
+  // Factor conversions: the model stores per-mph / per-°F / per-1000 ft; sliders
+  // speak the active conditions unit so tuning stays intuitive.
+  const perWind = (v: number) => (sys === 'metric' ? v / KMH_PER_MPH : v);
+  const perWindApply = (v: number) => (sys === 'metric' ? v * KMH_PER_MPH : v);
+  const F_PER_C = 9 / 5;
+  const perTemp = (v: number) => (sys === 'metric' ? v * F_PER_C : v);
+  const perTempApply = (v: number) => (sys === 'metric' ? v / F_PER_C : v);
+  const perAlt = (v: number) => (sys === 'metric' ? v / METERS_PER_FOOT : v);
+  const perAltApply = (v: number) => (sys === 'metric' ? v * METERS_PER_FOOT : v);
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -116,9 +135,9 @@ export function SettingsScreen() {
     <div className="space-y-4">
       <h1 className="text-xl font-bold">Settings</h1>
 
-      {/* Units */}
+      {/* Golf distance units */}
       <section className="rounded-2xl bg-turf-800 p-4">
-        <SectionTitle>Distance units</SectionTitle>
+        <SectionTitle>Golf distance units</SectionTitle>
         <div className="mt-2 flex rounded-xl bg-turf-700 p-1">
           {(['yd', 'm'] as const).map((unit) => (
             <button
@@ -134,7 +153,30 @@ export function SettingsScreen() {
           ))}
         </div>
         <p className="mt-2 text-xs text-turf-400">
-          Distances you enter are treated as {s.units}. Wind stays in mph for now.
+          Golf distances are yards almost everywhere, so that's the default. This only affects golf
+          distances — pin distance, carries, gaps.
+        </p>
+      </section>
+
+      {/* Conditions units */}
+      <section className="rounded-2xl bg-turf-800 p-4">
+        <SectionTitle>Conditions units</SectionTitle>
+        <div className="mt-2 flex rounded-xl bg-turf-700 p-1">
+          {(['metric', 'imperial'] as const).map((sysOpt) => (
+            <button
+              key={sysOpt}
+              type="button"
+              onClick={() => setS({ unitsSystem: sysOpt })}
+              className={`h-10 flex-1 rounded-lg text-xs font-semibold ${
+                s.unitsSystem === sysOpt ? 'bg-lime-400 text-turf-950' : 'text-turf-200'
+              }`}
+            >
+              {sysOpt === 'metric' ? 'Metric · °C, km/h, m' : 'Imperial · °F, mph, ft'}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-turf-400">
+          For wind, temperature and altitude. Metric is the default.
         </p>
       </section>
 
@@ -146,15 +188,29 @@ export function SettingsScreen() {
           Your laser already handles slope, so there's no elevation input.
         </p>
         <ConditionChips
-          label="Temperature"
+          label={`Temperature (${TEMP_UNIT(sys)})`}
           value={s.tempF}
-          options={[40, 50, 60, 70, 80, 90, 100].map((t) => ({ v: t, label: `${t}°F` }))}
+          options={
+            sys === 'metric'
+              ? [5, 10, 15, 20, 25, 30, 35, 40].map((c) => ({ v: tempFromDisplay(c, sys), label: `${c}°C` }))
+              : [40, 50, 60, 70, 80, 90, 100].map((t) => ({ v: t, label: `${t}°F` }))
+          }
           onSelect={(v) => setS({ tempF: v })}
         />
         <ConditionChips
-          label="Course altitude"
+          label={`Course altitude (${sys === 'metric' ? 'm' : 'ft'} above sea level)`}
           value={s.courseAltFt}
-          options={[0, 1000, 2500, 5000].map((a) => ({ v: a, label: a === 0 ? 'Sea level' : `${a.toLocaleString()} ft` }))}
+          options={
+            sys === 'metric'
+              ? [0, 300, 750, 1500].map((m) => ({
+                  v: altFromDisplay(m, sys),
+                  label: m === 0 ? 'Sea level' : `${m.toLocaleString()} m`,
+                }))
+              : [0, 1000, 2500, 5000].map((ft) => ({
+                  v: ft,
+                  label: ft === 0 ? 'Sea level' : `${ft.toLocaleString()} ft`,
+                }))
+          }
           onSelect={(v) => setS({ courseAltFt: v })}
         />
       </section>
@@ -173,48 +229,48 @@ export function SettingsScreen() {
         </div>
         <p className="mt-1 text-xs text-turf-400">
           These are heuristics, not physics. Play a few rounds, compare what actually happened, and tune
-          them to your game.
+          them to your game. Values follow your conditions units.
         </p>
         <div className="mt-2 divide-y divide-turf-700">
           <FactorRow
             label="Headwind"
-            hint="Distance lost per mph of headwind, % of carry."
-            value={f.headwindPctPerMph}
-            min={0.2}
-            max={1.5}
-            step={0.05}
-            fmt={(v) => `${v.toFixed(2)}% / mph`}
-            onChange={(v) => setF({ headwindPctPerMph: v })}
+            hint={`Distance lost per ${WIND_UNIT(sys)} of headwind, % of carry.`}
+            value={perWind(f.headwindPctPerMph)}
+            min={sys === 'metric' ? 0.12 : 0.2}
+            max={sys === 'metric' ? 0.93 : 1.5}
+            step={sys === 'metric' ? 0.03 : 0.05}
+            fmt={(v) => `${v.toFixed(2)}% / ${WIND_UNIT(sys)}`}
+            onChange={(v) => setF({ headwindPctPerMph: perWindApply(v) })}
           />
           <FactorRow
             label="Tailwind"
-            hint="Distance gained per mph of tailwind — helping winds help less than headwinds hurt."
-            value={f.tailwindPctPerMph}
-            min={0.1}
-            max={1.2}
-            step={0.05}
-            fmt={(v) => `${v.toFixed(2)}% / mph`}
-            onChange={(v) => setF({ tailwindPctPerMph: v })}
+            hint={`Distance gained per ${WIND_UNIT(sys)} of tailwind — helping winds help less than headwinds hurt.`}
+            value={perWind(f.tailwindPctPerMph)}
+            min={sys === 'metric' ? 0.06 : 0.1}
+            max={sys === 'metric' ? 0.75 : 1.2}
+            step={sys === 'metric' ? 0.03 : 0.05}
+            fmt={(v) => `${v.toFixed(2)}% / ${WIND_UNIT(sys)}`}
+            onChange={(v) => setF({ tailwindPctPerMph: perWindApply(v) })}
           />
           <FactorRow
             label="Temperature"
-            hint="Per °F away from 70°F. Cold air = shorter ball."
-            value={f.tempPctPerDegF}
+            hint={`Per ${TEMP_UNIT(sys)} away from the 70°F (21°C) baseline. Cold air = shorter ball.`}
+            value={perTemp(f.tempPctPerDegF)}
             min={0}
-            max={0.4}
-            step={0.01}
-            fmt={(v) => `${v.toFixed(2)}% / °F`}
-            onChange={(v) => setF({ tempPctPerDegF: v })}
+            max={sys === 'metric' ? 0.72 : 0.4}
+            step={sys === 'metric' ? 0.02 : 0.01}
+            fmt={(v) => `${v.toFixed(2)}% / ${TEMP_UNIT(sys)}`}
+            onChange={(v) => setF({ tempPctPerDegF: perTempApply(v) })}
           />
           <FactorRow
             label="Altitude"
-            hint="Distance gained per 1,000 ft above sea level."
-            value={f.altPctPer1000Ft}
+            hint={sys === 'metric' ? 'Distance gained per 1,000 m above sea level.' : 'Distance gained per 1,000 ft above sea level.'}
+            value={perAlt(f.altPctPer1000Ft)}
             min={0}
-            max={4}
-            step={0.1}
-            fmt={(v) => `${v.toFixed(1)}% / 1000 ft`}
-            onChange={(v) => setF({ altPctPer1000Ft: v })}
+            max={sys === 'metric' ? 13.1 : 4}
+            step={sys === 'metric' ? 0.3 : 0.1}
+            fmt={(v) => `${v.toFixed(1)}% / 1000 ${sys === 'metric' ? 'm' : 'ft'}`}
+            onChange={(v) => setF({ altPctPer1000Ft: perAltApply(v) })}
           />
           <FactorRow
             label="Overshoot penalty"

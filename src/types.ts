@@ -39,9 +39,14 @@ export interface Factors {
   overshootPenalty: number;
 }
 
+/** Units for wind / temperature / altitude display. Metric is the default. */
+export type UnitsSystem = 'metric' | 'imperial';
+
 export interface Settings {
+  /** Golf distance units — yards by default; golf is played in yards almost everywhere. */
   units: 'yd' | 'm';
-  /** Round conditions, set once per round in Settings — not per swing. */
+  unitsSystem: UnitsSystem;
+  /** Round conditions, set once per round in Settings — not per swing. Stored in °F internally. */
   tempF: number;
   /** Course elevation above sea level, feet (affects how far the ball flies). */
   courseAltFt: number;

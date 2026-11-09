@@ -1,4 +1,4 @@
-import type { Conditions, Factors, Settings, Shot, Trajectory } from '../types';
+import type { Conditions, Factors, Settings, Shot, Trajectory, UnitsSystem } from '../types';
 
 /**
  * The plays-like model.
@@ -49,6 +49,39 @@ export function fmtDist(yd: number, units: 'yd' | 'm'): string {
   return `${Math.round(toDisplayYards(yd, units))} ${units}`;
 }
 
+// ---- conditions units (°C/km/h/m vs °F/mph/ft — internal stays °F/mph/ft) --
+
+export const KMH_PER_MPH = 1.609344;
+export const METERS_PER_FOOT = 0.3048;
+
+export function tempToDisplay(tempF: number, sys: UnitsSystem): number {
+  return sys === 'metric' ? ((tempF - 32) * 5) / 9 : tempF;
+}
+
+export function tempFromDisplay(v: number, sys: UnitsSystem): number {
+  return sys === 'metric' ? (v * 9) / 5 + 32 : v;
+}
+
+export function windToDisplay(mph: number, sys: UnitsSystem): number {
+  return sys === 'metric' ? mph * KMH_PER_MPH : mph;
+}
+
+export function windFromDisplay(v: number, sys: UnitsSystem): number {
+  return sys === 'metric' ? v / KMH_PER_MPH : v;
+}
+
+export function altToDisplay(ft: number, sys: UnitsSystem): number {
+  return sys === 'metric' ? ft * METERS_PER_FOOT : ft;
+}
+
+export function altFromDisplay(v: number, sys: UnitsSystem): number {
+  return sys === 'metric' ? v / METERS_PER_FOOT : v;
+}
+
+export const WIND_UNIT = (sys: UnitsSystem) => (sys === 'metric' ? 'km/h' : 'mph');
+export const TEMP_UNIT = (sys: UnitsSystem) => (sys === 'metric' ? '°C' : '°F');
+export const ALT_UNIT = (sys: UnitsSystem) => (sys === 'metric' ? 'm' : 'ft');
+
 export function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
 }
@@ -72,17 +105,18 @@ export function windComponents(c: Conditions): WindParts {
   return { tail, head: -tail, crossRight };
 }
 
-export function windLabel(c: Conditions): string {
+export function windLabel(c: Conditions, sys: UnitsSystem = 'imperial'): string {
   if (c.windSpeed < 2) return 'Calm';
   const { tail, head, crossRight } = windComponents(c);
+  const w = (mph: number) => `${Math.round(windToDisplay(mph, sys))} ${WIND_UNIT(sys)}`;
   const parts: string[] = [];
-  if (tail >= 0.2 * c.windSpeed) parts.push(`${Math.round(tail)} mph tailwind`);
-  if (head >= 0.2 * c.windSpeed) parts.push(`${Math.round(head)} mph headwind`);
+  if (tail >= 0.2 * c.windSpeed) parts.push(`${w(tail)} tailwind`);
+  if (head >= 0.2 * c.windSpeed) parts.push(`${w(head)} headwind`);
   const cross = Math.abs(crossRight);
   if (cross >= 0.2 * c.windSpeed) {
-    parts.push(`${Math.round(cross)} mph ${crossRight > 0 ? 'left → right' : 'right → left'}`);
+    parts.push(`${w(cross)} ${crossRight > 0 ? 'left → right' : 'right → left'}`);
   }
-  if (parts.length === 0) parts.push(`${c.windSpeed} mph quartering`);
+  if (parts.length === 0) parts.push(`${w(c.windSpeed)} quartering`);
   return parts.join(' + ');
 }
 

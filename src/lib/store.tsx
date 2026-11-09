@@ -46,7 +46,13 @@ export function freshState(): AppState {
     version: STATE_VERSION,
     shots: sampleShots(),
     conditions: { pinDistance: 150, windSpeed: 0, windDir: 0 },
-    settings: { units: 'yd', tempF: 70, courseAltFt: 0, factors: { ...DEFAULT_FACTORS } },
+    settings: {
+      units: 'yd',
+      unitsSystem: 'metric',
+      tempF: 70,
+      courseAltFt: 0,
+      factors: { ...DEFAULT_FACTORS },
+    },
   };
 }
 

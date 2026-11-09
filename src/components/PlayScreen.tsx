@@ -4,13 +4,19 @@ import { useApp } from '../lib/store';
 import {
   SHAPE_LABEL,
   TRAJECTORY_LABEL,
+  WIND_UNIT,
+  altToDisplay,
+  clamp,
   crossAimYards,
   fmtDist,
   fromDisplayYards,
   rankShots,
+  tempToDisplay,
   toDisplayYards,
   windComponents,
+  windFromDisplay,
   windLabel,
+  windToDisplay,
 } from '../lib/golf';
 import { WindControl } from './WindControl';
 
@@ -60,6 +66,11 @@ export function PlayScreen() {
   const disp = Math.round(toDisplayYards(c.pinDistance, u));
   const setDisp = (v: number) => setCond({ pinDistance: Math.max(0, Math.round(fromDisplayYards(v, u))) });
 
+  const sys = s.unitsSystem;
+  const windDisp = Math.round(windToDisplay(c.windSpeed, sys));
+  const setWind = (dispV: number) =>
+    setCond({ windSpeed: clamp(windFromDisplay(dispV, sys), 0, 40) });
+
   const ranked = rankShots(state.shots, c, s);
   const best = ranked[0];
   const { crossRight } = windComponents(c);
@@ -68,9 +79,13 @@ export function PlayScreen() {
   const shortestLong = [...ranked].filter((r) => r.diff > 0).sort((a, b) => a.diff - b.diff)[0];
 
   const adjustBits: string[] = [];
-  if (c.windSpeed >= 2) adjustBits.push(windLabel(c));
-  if (s.tempF !== 70) adjustBits.push(`${s.tempF}°F`);
-  if (s.courseAltFt !== 0) adjustBits.push(`${s.courseAltFt.toLocaleString()} ft elev.`);
+  if (c.windSpeed >= 2) adjustBits.push(windLabel(c, sys));
+  if (s.tempF !== 70)
+    adjustBits.push(`${Math.round(tempToDisplay(s.tempF, sys))}°${sys === 'metric' ? 'C' : 'F'}`);
+  if (s.courseAltFt !== 0)
+    adjustBits.push(
+      `${Math.round(altToDisplay(s.courseAltFt, sys)).toLocaleString()} ${sys === 'metric' ? 'm' : 'ft'} elev.`,
+    );
 
   return (
     <div className="space-y-4">
@@ -108,16 +123,16 @@ export function PlayScreen() {
           <WindControl />
           <div className="flex-1">
             <div className="text-center text-4xl font-semibold">
-              {c.windSpeed}
-              <span className="ml-1 text-base font-medium text-turf-300">mph</span>
+              {windDisp}
+              <span className="ml-1 text-base font-medium text-turf-300">{WIND_UNIT(sys)}</span>
             </div>
             <div className="mt-2 flex justify-center gap-1.5">
-              <StepBtn label="−5" onClick={() => setCond({ windSpeed: Math.max(0, c.windSpeed - 5) })} disabled={c.windSpeed === 0} />
-              <StepBtn label="−1" onClick={() => setCond({ windSpeed: Math.max(0, c.windSpeed - 1) })} disabled={c.windSpeed === 0} />
-              <StepBtn label="+1" onClick={() => setCond({ windSpeed: c.windSpeed + 1 })} />
-              <StepBtn label="+5" onClick={() => setCond({ windSpeed: Math.min(40, c.windSpeed + 5) })} />
+              <StepBtn label="−5" onClick={() => setWind(windDisp - 5)} disabled={windDisp === 0} />
+              <StepBtn label="−1" onClick={() => setWind(windDisp - 1)} disabled={windDisp === 0} />
+              <StepBtn label="+1" onClick={() => setWind(windDisp + 1)} />
+              <StepBtn label="+5" onClick={() => setWind(windDisp + 5)} />
             </div>
-            <p className="mt-3 text-center text-sm text-turf-200">{windLabel(c)}</p>
+            <p className="mt-3 text-center text-sm text-turf-200">{windLabel(c, sys)}</p>
           </div>
         </div>
         <p className="mt-2 text-xs text-turf-400">

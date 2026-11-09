@@ -58,7 +58,10 @@ arsenal concept beats a plain club list. Overshoots are penalized when ranking
 hint instead of a distance change.
 
 Temperature and course altitude live in **Settings → Round conditions** — set
-them once when you arrive, not per swing.
+them once when you arrive, not per swing. Conditions (wind, temperature,
+altitude) display in **metric by default** (°C, km/h, m) with an imperial
+toggle in Settings; golf distances keep their own **yards-by-default** toggle,
+since golf is played in yards almost everywhere.
 
 Tuning factors (all adjustable in Settings → Model tuning):
 
