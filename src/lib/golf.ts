@@ -4,26 +4,26 @@ import type { Conditions, Factors, Settings, Shot, Trajectory } from '../types';
  * The plays-like model.
  *
  * A shot's stock `carry` is defined under STANDARD CONDITIONS:
- *   no wind · flat lie-to-green · 70°F · sea level.
+ *   no wind · 70°F · sea level.
  *
  * On the course:
- *  - WIND changes how far each shot flies (percentage, scaled by trajectory:
- *    high-flying shots are affected more than punch shots).
- *  - TEMPERATURE and COURSE ALTITUDE scale every shot's flight.
- *  - ELEVATION CHANGE to the green changes the REQUIRED carry, not the shot.
+ *  - The distance to cover is entered directly — a slope-adjusted laser
+ *    reading is ideal, since elevation is already baked into that number.
+ *    The app never adjusts for slope itself, so nothing is double-counted.
+ *  - WIND changes how far each shot flies: a percentage scaled by trajectory
+ *    (high-flying shots are affected more than punch shots).
+ *  - TEMPERATURE and COURSE ALTITUDE are per-round settings (Settings tab)
+ *    that scale every shot's flight.
  *
- * required carry = pin distance + elevation adjustment
  * effective carry(shot) = stock carry × wind × temperature × altitude
- * The best shot minimizes |effective − required|, with overshoots penalized
- * (flying the green is worse than coming up short).
+ * The best shot minimizes |effective carry − distance to cover|, with
+ * overshoots penalized (flying the green is worse than coming up short).
  */
 export const DEFAULT_FACTORS: Factors = {
   headwindPctPerMph: 0.8,
   tailwindPctPerMph: 0.45,
   tempPctPerDegF: 0.15,
   altPctPer1000Ft: 2,
-  elevUpYdPerFt: 1.0,
-  elevDownYdPerFt: 0.5,
   overshootPenalty: 1.5,
 };
 
@@ -88,23 +88,11 @@ export function windLabel(c: Conditions): string {
 
 // ---- the model -------------------------------------------------------------
 
-export function elevationYards(c: Conditions, f: Factors): number {
-  return c.elevationFt >= 0 ? c.elevationFt * f.elevUpYdPerFt : c.elevationFt * f.elevDownYdPerFt;
-}
-
-export function requiredCarry(c: Conditions, f: Factors): number {
-  return Math.max(0, c.pinDistance + elevationYards(c, f));
-}
-
-export function isStockConditions(c: Conditions): boolean {
-  return c.windSpeed < 2 && c.elevationFt === 0 && c.tempF === 70;
-}
-
 export interface ShotEstimate {
   shot: Shot;
   /** How far this shot flies in the current conditions. */
   effectiveCarry: number;
-  /** + = flies past the required carry, − = comes up short. Yards. */
+  /** + = flies past the number to cover, − = comes up short. Yards. */
   diff: number;
   /** Ranking cost (overshoots penalized). */
   score: number;
@@ -118,10 +106,10 @@ export function estimateShot(shot: Shot, c: Conditions, settings: Settings): Sho
   const k = head >= 0 ? f.headwindPctPerMph : f.tailwindPctPerMph;
   const sens = shot.windSensitivity ?? TRAJECTORY_WIND[shot.trajectory];
   const windPct = clamp(-head * k * sens, -40, 40);
-  const tempPct = (c.tempF - 70) * f.tempPctPerDegF;
+  const tempPct = (settings.tempF - 70) * f.tempPctPerDegF;
   const altPct = (settings.courseAltFt / 1000) * f.altPctPer1000Ft;
   const effectiveCarry = shot.carry * (1 + windPct / 100) * (1 + tempPct / 100) * (1 + altPct / 100);
-  const diff = effectiveCarry - requiredCarry(c, f);
+  const diff = effectiveCarry - c.pinDistance;
   const score = diff >= 0 ? diff * f.overshootPenalty : -diff;
   return { shot, effectiveCarry, diff, score, windPct };
 }

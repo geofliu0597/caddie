@@ -42,11 +42,13 @@ caches the app shell.
 ## The distance model
 
 Your arsenal's stock carries are defined under **standard conditions**: no wind,
-flat, 70°F, sea level. The app converts the situation into two numbers and
-matches them:
+70°F, sea level. Each shot's stock carry is scaled by the conditions, and the
+app ranks shots by how close they land to your number:
 
-- **Required carry** = pin distance + elevation adjustment (uphill adds,
-  downhill subtracts).
+- **The number to cover** = the distance you enter on the Play tab. A
+  slope-adjusted laser reading is ideal — elevation is already baked into it,
+  and the app deliberately does **not** adjust for slope itself, so nothing is
+  ever double-counted.
 - **Effective carry** (per shot) = stock carry × wind × temperature × altitude.
 
 Wind is applied as a percentage scaled by the shot's trajectory — high-flying
@@ -54,6 +56,9 @@ shots are hurt more by a headwind than punch shots, which is exactly why the
 arsenal concept beats a plain club list. Overshoots are penalized when ranking
 (flying the green is worse than coming up short). Crosswinds get a rough aim
 hint instead of a distance change.
+
+Temperature and course altitude live in **Settings → Round conditions** — set
+them once when you arrive, not per swing.
 
 Tuning factors (all adjustable in Settings → Model tuning):
 
@@ -63,8 +68,6 @@ Tuning factors (all adjustable in Settings → Model tuning):
 | Tailwind | 0.45%/mph | distance gained per mph behind |
 | Temperature | 0.15%/°F | per °F away from 70°F |
 | Altitude | 2%/1000 ft | distance gained per 1,000 ft above sea level |
-| Uphill | 1.0 yd/ft | added to required carry per foot of climb |
-| Downhill | 0.5 yd/ft | removed per foot of drop |
 | Overshoot penalty | 1.5× | ranking weight for flying past the number |
 
 These are caddie heuristics, not physics — play a few rounds, compare results,
@@ -82,6 +85,8 @@ the UI.
 
 - Supabase sync + multi-device backup
 - GPS distance-to-pin (needs course green coordinates) and shot tracking
+- Optional manual slope entry (only relevant if you ever use non-slope-adjusted
+  GPS numbers on hilly courses — laser users don't need it)
 - Dispersion per shot (average + spread, not just stock carry)
-- Wind in km/h / metric elevation, if you play in metric countries
+- Wind in km/h, if you play in metric countries
 - Green-side context (front/middle/back pin, hazards)

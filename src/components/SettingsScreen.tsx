@@ -47,10 +47,43 @@ function FactorRow({
   );
 }
 
+function ConditionChips({
+  options,
+  value,
+  label,
+  onSelect,
+}: {
+  options: { v: number; label: string }[];
+  value: number;
+  label: string;
+  onSelect: (v: number) => void;
+}) {
+  return (
+    <div className="mt-3">
+      <span className="text-sm font-medium text-turf-100">{label}</span>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {options.map((o) => (
+          <button
+            key={o.v}
+            type="button"
+            onClick={() => onSelect(o.v)}
+            className={`h-9 rounded-full px-3 text-sm font-medium ${
+              value === o.v ? 'bg-lime-400 text-turf-950' : 'bg-turf-700 text-turf-100'
+            }`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function SettingsScreen() {
   const { state, dispatch } = useApp();
   const s = state.settings;
   const f = s.factors;
+  const setS = (patch: Partial<typeof s>) => dispatch({ type: 'setSettings', patch });
   const setF = (patch: Partial<Factors>) => dispatch({ type: 'setFactors', patch });
 
   const exportData = () => {
@@ -91,7 +124,7 @@ export function SettingsScreen() {
             <button
               key={unit}
               type="button"
-              onClick={() => dispatch({ type: 'setSettings', patch: { units: unit } })}
+              onClick={() => setS({ units: unit })}
               className={`h-10 flex-1 rounded-lg text-sm font-semibold ${
                 s.units === unit ? 'bg-lime-400 text-turf-950' : 'text-turf-200'
               }`}
@@ -101,30 +134,29 @@ export function SettingsScreen() {
           ))}
         </div>
         <p className="mt-2 text-xs text-turf-400">
-          Distances you enter are treated as {s.units}. Wind stays in mph and elevation in feet for now.
+          Distances you enter are treated as {s.units}. Wind stays in mph for now.
         </p>
       </section>
 
-      {/* Course altitude */}
+      {/* Round conditions */}
       <section className="rounded-2xl bg-turf-800 p-4">
-        <SectionTitle>Course altitude</SectionTitle>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {[0, 1000, 2500, 5000].map((alt) => (
-            <button
-              key={alt}
-              type="button"
-              onClick={() => dispatch({ type: 'setSettings', patch: { courseAltFt: alt } })}
-              className={`h-9 rounded-full px-3 text-sm font-medium ${
-                s.courseAltFt === alt ? 'bg-lime-400 text-turf-950' : 'bg-turf-700 text-turf-100'
-              }`}
-            >
-              {alt === 0 ? 'Sea level' : `${alt.toLocaleString()} ft`}
-            </button>
-          ))}
-        </div>
-        <p className="mt-2 text-xs text-turf-400">
-          The ball flies farther at altitude — this stretches every shot in your arsenal.
+        <SectionTitle>Round conditions</SectionTitle>
+        <p className="mt-1 text-xs text-turf-400">
+          Set once when you arrive — these change how far your shots fly, not the number you cover.
+          Your laser already handles slope, so there's no elevation input.
         </p>
+        <ConditionChips
+          label="Temperature"
+          value={s.tempF}
+          options={[40, 50, 60, 70, 80, 90, 100].map((t) => ({ v: t, label: `${t}°F` }))}
+          onSelect={(v) => setS({ tempF: v })}
+        />
+        <ConditionChips
+          label="Course altitude"
+          value={s.courseAltFt}
+          options={[0, 1000, 2500, 5000].map((a) => ({ v: a, label: a === 0 ? 'Sea level' : `${a.toLocaleString()} ft` }))}
+          onSelect={(v) => setS({ courseAltFt: v })}
+        />
       </section>
 
       {/* Model tuning */}
@@ -183,26 +215,6 @@ export function SettingsScreen() {
             step={0.1}
             fmt={(v) => `${v.toFixed(1)}% / 1000 ft`}
             onChange={(v) => setF({ altPctPer1000Ft: v })}
-          />
-          <FactorRow
-            label="Uphill"
-            hint="Yards added to the required carry per foot of elevation gain."
-            value={f.elevUpYdPerFt}
-            min={0.2}
-            max={2}
-            step={0.05}
-            fmt={(v) => `${v.toFixed(2)} yd / ft`}
-            onChange={(v) => setF({ elevUpYdPerFt: v })}
-          />
-          <FactorRow
-            label="Downhill"
-            hint="Yards removed per foot of elevation drop."
-            value={f.elevDownYdPerFt}
-            min={0}
-            max={1.5}
-            step={0.05}
-            fmt={(v) => `${v.toFixed(2)} yd / ft`}
-            onChange={(v) => setF({ elevDownYdPerFt: v })}
           />
           <FactorRow
             label="Overshoot penalty"

@@ -6,7 +6,7 @@ export interface Shot {
   id: string;
   club: string; // "Driver", "7 Iron", "Lob Wedge", ...
   name: string; // "Full", "Punch", "Flop", "Knockdown ¾", ...
-  /** Stock carry distance under "standard conditions" (no wind, flat, 70°F, sea level). Yards. */
+  /** Stock carry distance under "standard conditions" (no wind, 70°F, sea level). Yards. */
   carry: number;
   /** Optional total distance (carry + rollout). Yards. */
   total?: number | null;
@@ -19,34 +19,30 @@ export interface Shot {
   sample?: boolean;
 }
 
-/** The situation the shot needs to cover. Distances/elevations stored in yards/feet internally. */
+/** The per-swing situation the shot needs to cover. Distances stored in yards internally. */
 export interface Conditions {
-  /** Distance to the pin (yards). */
+  /** Distance to cover, yards. A slope-adjusted laser reading is ideal — elevation is already baked in. */
   pinDistance: number;
-  /** Elevation of green relative to ball, feet. Positive = uphill (plays longer). */
-  elevationFt: number;
   /** Wind speed, mph. */
   windSpeed: number;
   /** Direction the wind blows TOWARD, degrees. 0 = toward the green (tailwind), 90 = left-to-right, 180 = back at you (headwind). */
   windDir: number;
-  /** Temperature, °F (baseline 70). */
-  tempF: number;
 }
 
-/** Tunable constants for the plays-like model. See README for what each does. */
+/** Tunable constants for the model. See README for what each does. */
 export interface Factors {
   headwindPctPerMph: number;
   tailwindPctPerMph: number;
   tempPctPerDegF: number;
   altPctPer1000Ft: number;
-  elevUpYdPerFt: number;
-  elevDownYdPerFt: number;
   /** Overshoots are worse than coming up short — this multiplies the "flies past" penalty when ranking. */
   overshootPenalty: number;
 }
 
 export interface Settings {
   units: 'yd' | 'm';
+  /** Round conditions, set once per round in Settings — not per swing. */
+  tempF: number;
   /** Course elevation above sea level, feet (affects how far the ball flies). */
   courseAltFt: number;
   factors: Factors;

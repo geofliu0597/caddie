@@ -5,12 +5,9 @@ import {
   SHAPE_LABEL,
   TRAJECTORY_LABEL,
   crossAimYards,
-  elevationYards,
   fmtDist,
   fromDisplayYards,
-  isStockConditions,
   rankShots,
-  requiredCarry,
   toDisplayYards,
   windComponents,
   windLabel,
@@ -26,20 +23,6 @@ function StepBtn({ label, onClick, disabled }: { label: string; onClick: () => v
       className="h-11 min-w-11 rounded-xl bg-turf-700 px-3 text-base font-semibold text-turf-50 active:bg-turf-600 disabled:opacity-40"
     >
       {label}
-    </button>
-  );
-}
-
-function Chip({ active, onClick, children }: { active?: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`h-9 rounded-full px-3 text-sm font-medium ${
-        active ? 'bg-lime-400 text-turf-950' : 'bg-turf-700 text-turf-100'
-      }`}
-    >
-      {children}
     </button>
   );
 }
@@ -70,32 +53,28 @@ const GAP_YD = 6;
 export function PlayScreen() {
   const { state, dispatch } = useApp();
   const c = state.conditions;
-  const u = state.settings.units;
+  const s = state.settings;
+  const u = s.units;
   const setCond = (patch: Partial<Conditions>) => dispatch({ type: 'setConditions', patch });
 
   const disp = Math.round(toDisplayYards(c.pinDistance, u));
   const setDisp = (v: number) => setCond({ pinDistance: Math.max(0, Math.round(fromDisplayYards(v, u))) });
 
-  const ranked = rankShots(state.shots, c, state.settings);
-  const req = requiredCarry(c, state.settings.factors);
+  const ranked = rankShots(state.shots, c, s);
   const best = ranked[0];
   const { crossRight } = windComponents(c);
   const noClose = best !== undefined && best.score > GAP_YD;
   const longestShort = [...ranked].filter((r) => r.diff <= 0).sort((a, b) => b.diff - a.diff)[0];
   const shortestLong = [...ranked].filter((r) => r.diff > 0).sort((a, b) => a.diff - b.diff)[0];
 
-  const elevYd = elevationYards(c, state.settings.factors);
-  const summaryBits: string[] = [];
-  if (c.windSpeed >= 2) summaryBits.push(windLabel(c));
-  if (c.elevationFt !== 0)
-    summaryBits.push(`${Math.abs(c.elevationFt)} ft ${c.elevationFt > 0 ? 'uphill' : 'downhill'}`);
-  if (c.tempF !== 70) summaryBits.push(`${c.tempF}°F`);
-  if (state.settings.courseAltFt !== 0)
-    summaryBits.push(`${state.settings.courseAltFt.toLocaleString()} ft course elev.`);
+  const adjustBits: string[] = [];
+  if (c.windSpeed >= 2) adjustBits.push(windLabel(c));
+  if (s.tempF !== 70) adjustBits.push(`${s.tempF}°F`);
+  if (s.courseAltFt !== 0) adjustBits.push(`${s.courseAltFt.toLocaleString()} ft elev.`);
 
   return (
     <div className="space-y-4">
-      {/* Distance to pin */}
+      {/* Distance to pin — the number to cover */}
       <section className="rounded-2xl bg-turf-800 p-4">
         <SectionTitle>Distance to pin</SectionTitle>
         <div className="mt-2 flex items-center justify-between gap-1.5">
@@ -117,6 +96,9 @@ export function PlayScreen() {
           className="mt-3 w-full"
           aria-label="Distance to pin"
         />
+        <p className="mt-1 text-xs text-turf-400">
+          A slope-adjusted laser reading is perfect here — the app treats it as the number to cover.
+        </p>
       </section>
 
       {/* Wind */}
@@ -143,73 +125,13 @@ export function PlayScreen() {
         </p>
       </section>
 
-      {/* Slope + temperature */}
-      <section className="rounded-2xl bg-turf-800 p-4">
-        <SectionTitle>Slope to green</SectionTitle>
-        <div className="mt-2 flex items-center justify-between gap-1.5">
-          <div className="flex gap-1.5">
-            <StepBtn label="−5" onClick={() => setCond({ elevationFt: Math.max(-60, c.elevationFt - 5) })} />
-            <StepBtn label="−1" onClick={() => setCond({ elevationFt: Math.max(-60, c.elevationFt - 1) })} />
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-semibold">
-              {c.elevationFt > 0 ? '+' : ''}
-              {c.elevationFt}
-              <span className="ml-1 text-sm font-medium text-turf-300">ft</span>
-            </div>
-            {elevYd !== 0 && (
-              <div className="text-xs text-turf-300 tabular-nums">
-                required carry {elevYd > 0 ? '+' : ''}
-                {Math.round(toDisplayYards(elevYd, u))} {u}
-              </div>
-            )}
-          </div>
-          <div className="flex gap-1.5">
-            <StepBtn label="+1" onClick={() => setCond({ elevationFt: Math.min(60, c.elevationFt + 1) })} />
-            <StepBtn label="+5" onClick={() => setCond({ elevationFt: Math.min(60, c.elevationFt + 5) })} />
-          </div>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {[-20, -10, 0, 10, 20].map((v) => (
-            <Chip key={v} active={c.elevationFt === v} onClick={() => setCond({ elevationFt: v })}>
-              {v === 0 ? 'Flat' : v > 0 ? `+${v} up` : `${v} down`}
-            </Chip>
-          ))}
-        </div>
-
-        <div className="mt-4">
-          <SectionTitle>Temperature</SectionTitle>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {[40, 50, 60, 70, 80, 90, 100].map((t) => (
-              <Chip key={t} active={c.tempF === t} onClick={() => setCond({ tempF: t })}>
-                {t}°F
-              </Chip>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Plays like */}
-      <section
-        className={`rounded-2xl border p-4 ${
-          isStockConditions(c) ? 'border-turf-600 bg-turf-800' : 'border-lime-400/40 bg-turf-800'
-        }`}
-      >
-        <div className="text-sm text-turf-300">Plays like</div>
-        <div className="mt-0.5 text-5xl font-semibold text-lime-300">
-          {Math.round(toDisplayYards(req, u))}
-          <span className="ml-1 text-lg font-medium text-turf-200">{u}</span>
-        </div>
-        <div className="mt-1 text-sm text-turf-300">
-          {isStockConditions(c)
-            ? `Matches the pin distance — stock conditions (from ${Math.round(toDisplayYards(c.pinDistance, u))} ${u})`
-            : `Pin ${Math.round(toDisplayYards(c.pinDistance, u))} ${u} · ${summaryBits.join(' · ')}`}
-        </div>
-      </section>
-
       {/* Options */}
       <section className="space-y-3">
         <SectionTitle>Your options</SectionTitle>
+        <p className="-mt-1 text-xs text-turf-400">
+          Covering {disp} {u}
+          {adjustBits.length > 0 && <> · adjusting for {adjustBits.join(' · ')}</>}
+        </p>
         {state.shots.length === 0 && (
           <p className="rounded-xl bg-turf-800 p-4 text-sm text-turf-300">
             Your arsenal is empty — add shots in the Arsenal tab.
