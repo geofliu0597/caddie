@@ -44,9 +44,9 @@ function DiffBadge({ diff, u }: { diff: number; u: 'yd' | 'm' }) {
   const r = Math.round(toDisplayYards(diff, u));
   const abs = Math.abs(r);
   const tone =
-    abs <= 3
+    abs <= 8
       ? 'bg-lime-400/15 text-lime-300'
-      : abs <= 6
+      : abs <= 15
         ? 'bg-amber-400/15 text-amber-300'
         : 'bg-red-400/15 text-red-300';
   return (
@@ -84,17 +84,18 @@ export function PlayScreen() {
   const slopeDeg = finiteOr(c.slopeDeg, 0);
   const windParts = windLabel(c, sys);
 
-  // What today's stance slope does to the best shot's carry — shown in the
-  // slope card's middle column.
-  let slopeEffectLabel: string | null = null;
-  if (best) {
-    if (slopeDeg === 0) {
-      slopeEffectLabel = 'No change';
-    } else {
-      const yd =
-        (-slopeDeg * finiteOr(s.factors?.slopePctPerDeg, DEFAULT_FACTORS.slopePctPerDeg) * finiteOr(best.shot.carry, 0)) / 100;
-      const dispAbs = Math.round(Math.abs(toDisplayYards(yd, u)));
-      slopeEffectLabel = dispAbs === 0 ? 'No change' : `${dispAbs} ${u} ${yd < 0 ? 'shorter' : 'longer'}`;
+  // What today's stance slope does to the best shot's carry — shown on the
+  // right side of the slope card, next to the degrees. Hidden when the change
+  // rounds to 0 so the row never shows a cramped "No change".
+  let slopeEffectValue: string | null = null;
+  let slopeEffectQualifier: string | null = null;
+  if (best && slopeDeg !== 0) {
+    const yd =
+      (-slopeDeg * finiteOr(s.factors?.slopePctPerDeg, DEFAULT_FACTORS.slopePctPerDeg) * finiteOr(best.shot.carry, 0)) / 100;
+    const dispAbs = Math.round(Math.abs(toDisplayYards(yd, u)));
+    if (dispAbs >= 1) {
+      slopeEffectValue = `${dispAbs} ${u}`;
+      slopeEffectQualifier = yd < 0 ? 'shorter' : 'longer';
     }
   }
 
@@ -372,7 +373,12 @@ export function PlayScreen() {
                 <section className="rounded-2xl bg-turf-800 p-4">
                   <SectionTitle>Front-back slope</SectionTitle>
                   <div className="mt-2">
-                    <SlopeControl value={slopeDeg} onChange={(deg) => setCond({ slopeDeg: deg })} effectLabel={slopeEffectLabel} />
+                    <SlopeControl
+                      value={slopeDeg}
+                      onChange={(deg) => setCond({ slopeDeg: deg })}
+                      effectValue={slopeEffectValue}
+                      effectQualifier={slopeEffectQualifier}
+                    />
                   </div>
                   <p className="mt-2 text-xs text-turf-400">The tilt under your feet</p>
                 </section>

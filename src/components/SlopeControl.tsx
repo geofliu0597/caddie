@@ -3,24 +3,31 @@ import { finiteOr } from '../lib/golf';
 /**
  * Stance-slope graphic + slider: the tilt of the ground under the golfer's
  * feet. The line tilts with the slope — uphill (+deg) raises the heels/flag
- * side, downhill (−deg) lowers it. `effectLabel` (optional) fills the middle
- * column with what the slope does to the current best shot's carry.
+ * side, downhill (−deg) lowers it. Row layout: graphic (half the row) ·
+ * degrees · what the slope does to the best shot's carry, on the right.
  */
 export function SlopeControl({
   value,
   onChange,
-  effectLabel,
+  effectValue,
+  effectQualifier,
 }: {
   value: number;
   onChange: (deg: number) => void;
-  effectLabel?: string | null;
+  effectValue?: string | null;
+  effectQualifier?: string | null;
 }) {
   const deg = finiteOr(value, 0);
   const dir = deg > 0 ? 'uphill' : deg < 0 ? 'downhill' : 'flat';
   return (
     <div>
-      <div className="flex items-center gap-4">
-        <svg viewBox="0 0 120 76" className="h-[76px] w-[120px] shrink-0" aria-hidden>
+      <div className="flex items-center gap-3">
+        <svg
+          viewBox="0 0 120 76"
+          className="h-auto w-1/2 shrink-0"
+          style={{ aspectRatio: '120 / 76' }}
+          aria-hidden
+        >
           {/* flat reference */}
           <line x1="14" y1="38" x2="106" y2="38" stroke="#3a5a45" strokeWidth="1.5" strokeDasharray="4 5" />
           {/* the ground line + flag, rotating about the pivot */}
@@ -38,18 +45,18 @@ export function SlopeControl({
           </g>
           <circle cx="60" cy="38" r="3.5" fill="#a3e635" />
         </svg>
-        {effectLabel != null && (
-          <div className="min-w-0 flex-1 text-center">
-            <div className="text-sm font-semibold text-turf-50">{effectLabel}</div>
-            <div className="text-[11px] text-turf-400">carry on this shot</div>
-          </div>
-        )}
-        <div className="min-w-16 shrink-0 text-right">
+        <div className="min-w-14 shrink-0">
           <div className="text-3xl font-semibold tabular-nums">
             {Math.abs(Math.round(deg))}°
           </div>
           <div className="text-xs font-medium capitalize text-turf-300">{dir}</div>
         </div>
+        {effectValue != null && (
+          <div className="min-w-0 flex-1 text-right">
+            <div className="text-base font-semibold tabular-nums text-turf-50">{effectValue}</div>
+            {effectQualifier && <div className="text-xs font-medium text-turf-300">{effectQualifier}</div>}
+          </div>
+        )}
       </div>
       <input
         type="range"
