@@ -17,7 +17,7 @@ export default function App() {
   return (
     <AppProvider>
       <div className="mx-auto min-h-dvh w-full max-w-md">
-        <header className="sticky top-0 z-40 border-b border-turf-700/60 bg-turf-900/95 backdrop-blur">
+        <header className="sticky top-0 z-40 border-b border-turf-700/60 bg-turf-900/95">
           <div className="flex items-center justify-between gap-2 px-4 py-2">
             <span className="text-lg font-bold text-turf-50">Caddie</span>
             <nav className="flex rounded-xl bg-turf-800 p-1">

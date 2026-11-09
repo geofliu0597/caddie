@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Shape, Shot, Trajectory } from '../types';
 import { newShotId, useApp } from '../lib/store';
 import { SHAPE_LABEL, TRAJECTORY_LABEL, TRAJECTORY_WIND, fmtDist } from '../lib/golf';
@@ -85,20 +86,46 @@ function ShotEditor({
     });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onCancel}>
+  // Portal to <body>: the modal layers above everything (app header included)
+  // regardless of stacking contexts further down the tree.
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70" onClick={onCancel}>
       <div
-        className="max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border-t border-turf-600 bg-turf-900 p-5 pb-8"
+        className="flex max-h-[88dvh] w-full max-w-md flex-col rounded-t-3xl border-t border-turf-600 bg-turf-900"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between">
+        {/* Title + actions stay put; only the form below scrolls. */}
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-turf-700/60 px-5 py-3">
           <h2 className="text-lg font-semibold">{isNew ? 'New shot' : 'Edit shot'}</h2>
-          <button type="button" onClick={onCancel} className="text-sm text-turf-300">
-            Cancel
-          </button>
+          <div className="flex items-center gap-1">
+            {!isNew && (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="rounded-lg px-2.5 py-2 text-sm font-semibold text-red-300 active:bg-red-500/10"
+              >
+                Delete
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onCancel}
+              className="rounded-lg px-2.5 py-2 text-sm font-semibold text-turf-300 active:bg-turf-700"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={!valid}
+              className="ml-1 rounded-xl bg-lime-400 px-4 py-2 text-sm font-semibold text-turf-950 disabled:opacity-40"
+            >
+              Save
+            </button>
+          </div>
         </div>
 
-        <div className="mt-4 space-y-3">
+        <div className="flex-1 space-y-3 overflow-y-auto px-5 pb-8 pt-4">
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-wider text-turf-300">Club</span>
             <input
@@ -207,27 +234,9 @@ function ShotEditor({
           </label>
         </div>
 
-        <div className="mt-5 flex gap-2">
-          {!isNew && (
-            <button
-              type="button"
-              onClick={onDelete}
-              className="rounded-xl bg-red-500/15 px-4 py-3 text-sm font-semibold text-red-300"
-            >
-              Delete
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={save}
-            disabled={!valid}
-            className="flex-1 rounded-xl bg-lime-400 py-3 font-semibold text-turf-950 disabled:opacity-40"
-          >
-            Save shot
-          </button>
-        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
