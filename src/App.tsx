@@ -16,28 +16,31 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('play');
   return (
     <AppProvider>
-      <div className="mx-auto min-h-dvh w-full max-w-md pb-20">
-        <main className="px-4 pt-4">
+      <div className="mx-auto min-h-dvh w-full max-w-md">
+        <header className="sticky top-0 z-40 border-b border-turf-700/60 bg-turf-900/95 backdrop-blur">
+          <div className="flex items-center justify-between gap-2 px-4 py-2">
+            <span className="text-lg font-bold text-turf-50">Caddie</span>
+            <nav className="flex rounded-xl bg-turf-800 p-1">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTab(t.id)}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
+                    tab === t.id ? 'bg-lime-400 text-turf-950' : 'text-turf-300 active:bg-turf-700'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </header>
+        <main className="px-4 pb-10 pt-4">
           {tab === 'play' && <PlayScreen />}
           {tab === 'arsenal' && <ArsenalScreen />}
           {tab === 'settings' && <SettingsScreen />}
         </main>
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-turf-700 bg-turf-900/95 backdrop-blur">
-          <div className="mx-auto flex w-full max-w-md pb-[env(safe-area-inset-bottom)]">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                className={`flex-1 py-3 text-sm font-semibold ${
-                  tab === t.id ? 'text-lime-300' : 'text-turf-400'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </nav>
       </div>
     </AppProvider>
   );

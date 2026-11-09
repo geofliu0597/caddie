@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import type { Conditions } from '../types';
 import { useApp } from '../lib/store';
 import {
@@ -91,151 +92,244 @@ export function PlayScreen() {
       `${Math.round(altToDisplay(altFt, sys)).toLocaleString()} ${sys === 'metric' ? 'm' : 'ft'} elev.`,
     );
 
+  // ---- Distance & wind dock -------------------------------------------------
+  // A bottom sheet: drag up on the handle to reveal the inputs, drag down
+  // (or tap the handle) to tuck it away. The sheet caps its height so the
+  // primary info — "Your options" above it — is never fully covered.
+  const [open, setOpen] = useState(false);
+  const [dragY, setDragY] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef<{ y: number; t: number; moved: number } | null>(null);
+
+  const onHandleDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = { y: e.clientY, t: performance.now(), moved: 0 };
+    setDragging(true);
+  };
+  const onHandleMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    const dy = e.clientY - d.y;
+    d.moved = Math.max(d.moved, Math.abs(dy));
+    if (open) setDragY(Math.max(0, dy)); // the open sheet follows the finger down
+  };
+  const endDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    drag.current = null;
+    setDragging(false);
+    if (!d) return;
+    const dy = e.clientY - d.y;
+    const dt = performance.now() - d.t;
+    const flick = dt < 260 && Math.abs(dy) > 24;
+    const tap = d.moved < 8 && dt < 450;
+    setDragY(0);
+    if (tap) setOpen((o) => !o);
+    else if (open && (dy > 90 || (flick && dy > 0))) setOpen(false);
+    else if (!open && (dy < -40 || (flick && dy < 0))) setOpen(true);
+  };
+
   return (
-    <div className="space-y-4">
-      {/* Distance to pin — the number to cover */}
-      <section className="rounded-2xl bg-turf-800 p-4">
-        <SectionTitle>Distance to pin</SectionTitle>
-        <div className="mt-2 flex items-center justify-between gap-1.5">
-          <StepBtn label="−5" onClick={() => setDisp(disp - 5)} disabled={disp <= 0} />
-          <StepBtn label="−1" onClick={() => setDisp(disp - 1)} disabled={disp <= 0} />
-          <div className="min-w-24 text-center text-5xl font-semibold">
-            {disp}
-            <span className="ml-1 text-lg font-medium text-turf-300">{u}</span>
-          </div>
-          <StepBtn label="+1" onClick={() => setDisp(disp + 1)} />
-          <StepBtn label="+5" onClick={() => setDisp(disp + 5)} />
-        </div>
-        <input
-          type="range"
-          min={20}
-          max={320}
-          value={Math.min(320, Math.max(20, disp))}
-          onChange={(e) => setDisp(Number(e.target.value))}
-          className="mt-3 w-full"
-          aria-label="Distance to pin"
-        />
-        <p className="mt-1 text-xs text-turf-400">
-          A slope-adjusted laser reading is perfect here — the app treats it as the number to cover.
-        </p>
-      </section>
-
-      {/* Wind */}
-      <section className="rounded-2xl bg-turf-800 p-4">
-        <SectionTitle>Wind</SectionTitle>
-        <div className="mt-2 flex items-center gap-4">
-          <WindControl />
-          <div className="flex-1">
-            <div className="text-center text-4xl font-semibold">
-              {windDisp}
-              <span className="ml-1 text-base font-medium text-turf-300">{WIND_UNIT(sys)}</span>
-            </div>
-            <div className="mt-2 flex justify-center gap-1.5">
-              <StepBtn label="−5" onClick={() => setWind(windDisp - 5)} disabled={windDisp === 0} />
-              <StepBtn label="−1" onClick={() => setWind(windDisp - 1)} disabled={windDisp === 0} />
-              <StepBtn label="+1" onClick={() => setWind(windDisp + 1)} />
-              <StepBtn label="+5" onClick={() => setWind(windDisp + 5)} />
-            </div>
-            <p className="mt-3 text-center text-sm text-turf-200">{windLabel(c, sys)}</p>
-          </div>
-        </div>
-        <p className="mt-2 text-xs text-turf-400">
-          Drag the dial — the arrow points where the wind blows. Up = toward the green (helping).
-        </p>
-      </section>
-
-      {/* Options */}
-      <section className="space-y-3">
-        <SectionTitle>Your options</SectionTitle>
-        <p className="-mt-1 text-xs text-turf-400">
-          Covering {disp} {u}
-          {adjustBits.length > 0 && <> · adjusting for {adjustBits.join(' · ')}</>}
-        </p>
-        {state.shots.length === 0 && (
-          <p className="rounded-xl bg-turf-800 p-4 text-sm text-turf-300">
-            Your arsenal is empty — add shots in the Arsenal tab.
+    <div>
+      {/* Primary info — your options, always in view */}
+      <div className="space-y-4 pb-44">
+        <section className="space-y-3">
+          <SectionTitle>Your options</SectionTitle>
+          <p className="-mt-1 text-xs text-turf-400">
+            Covering {disp} {u}
+            {adjustBits.length > 0 && <> · adjusting for {adjustBits.join(' · ')}</>}
           </p>
-        )}
-
-        {best && (
-          <article className="rounded-2xl border-2 border-lime-400/60 bg-turf-700 p-4">
-            <div className="flex items-center justify-between">
-              <span className="rounded-full bg-lime-400 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-turf-950">
-                Best match
-              </span>
-              <DiffBadge diff={best.diff} u={u} />
-            </div>
-            <h3 className="mt-2 text-2xl font-semibold">
-              {best.shot.club} <span className="font-normal text-turf-200">· {best.shot.name}</span>
-            </h3>
-            <p className="mt-1 text-turf-100">
-              Flies <span className="font-semibold">{fmtDist(best.effectiveCarry, u)}</span>
-              <span className="text-turf-300"> here (stock {fmtDist(best.shot.carry, u)})</span>
+          {state.shots.length === 0 && (
+            <p className="rounded-xl bg-turf-800 p-4 text-sm text-turf-300">
+              Your arsenal is empty — add shots in the Arsenal tab.
             </p>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs">
-              <span className="rounded-full bg-turf-600 px-2 py-0.5 text-turf-100">
-                {TRAJECTORY_LABEL[best.shot.trajectory]} trajectory
-              </span>
-              <span className="rounded-full bg-turf-600 px-2 py-0.5 text-turf-100">
-                {SHAPE_LABEL[best.shot.shape]}
-              </span>
-              {best.windPct !== 0 && (
-                <span className="rounded-full bg-turf-600 px-2 py-0.5 text-turf-100 tabular-nums">
-                  wind {best.windPct > 0 ? '+' : ''}
-                  {Math.round(best.windPct)}%
+          )}
+
+          {best && (
+            <article className="rounded-2xl border-2 border-lime-400/60 bg-turf-700 p-4">
+              <div className="flex items-center justify-between">
+                <span className="rounded-full bg-lime-400 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-turf-950">
+                  Best match
                 </span>
+                <DiffBadge diff={best.diff} u={u} />
+              </div>
+              <h3 className="mt-2 text-2xl font-semibold">
+                {best.shot.club} <span className="font-normal text-turf-200">· {best.shot.name}</span>
+              </h3>
+              <p className="mt-1 text-turf-100">
+                Flies <span className="font-semibold">{fmtDist(best.effectiveCarry, u)}</span>
+                <span className="text-turf-300"> here (stock {fmtDist(best.shot.carry, u)})</span>
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-turf-600 px-2 py-0.5 text-turf-100">
+                  {TRAJECTORY_LABEL[best.shot.trajectory]} trajectory
+                </span>
+                <span className="rounded-full bg-turf-600 px-2 py-0.5 text-turf-100">
+                  {SHAPE_LABEL[best.shot.shape]}
+                </span>
+                {best.windPct !== 0 && (
+                  <span className="rounded-full bg-turf-600 px-2 py-0.5 text-turf-100 tabular-nums">
+                    wind {best.windPct > 0 ? '+' : ''}
+                    {Math.round(best.windPct)}%
+                  </span>
+                )}
+              </div>
+              {Math.abs(crossRight) >= 3 && (
+                <p className="mt-2 text-sm text-amber-300">
+                  Crosswind: start your ball ~{Math.round(toDisplayYards(crossAimYards(best.effectiveCarry, crossRight), u))} {u}{' '}
+                  {crossRight > 0 ? 'left' : 'right'} of the flag.
+                </p>
+              )}
+              {best.shot.notes && <p className="mt-2 text-sm italic text-turf-200">{best.shot.notes}</p>}
+            </article>
+          )}
+
+          {noClose && best && (
+            <div className="rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3 text-sm text-amber-200">
+              No stock shot flies this number.{' '}
+              {longestShort && (
+                <>
+                  <b>
+                    {longestShort.shot.club} {longestShort.shot.name}
+                  </b>{' '}
+                  comes up {Math.round(-longestShort.diff)} {u} short
+                </>
+              )}
+              {longestShort && shortestLong ? '; ' : ''}
+              {shortestLong && (
+                <>
+                  <b>
+                    {shortestLong.shot.club} {shortestLong.shot.name}
+                  </b>{' '}
+                  flies {Math.round(shortestLong.diff)} {u} past
+                </>
+              )}
+              . Consider an easier or harder swing — or add a shot for this gap in the Arsenal tab.
+            </div>
+          )}
+
+          {ranked.length > 1 && (
+            <ul className="space-y-2">
+              {ranked.slice(1, 6).map((r) => (
+                <li key={r.shot.id} className="flex items-center justify-between rounded-xl bg-turf-800 px-4 py-3">
+                  <div>
+                    <div className="font-medium">
+                      {r.shot.club} <span className="text-turf-300">· {r.shot.name}</span>
+                    </div>
+                    <div className="text-xs text-turf-300">flies {fmtDist(r.effectiveCarry, u)}</div>
+                  </div>
+                  <DiffBadge diff={r.diff} u={u} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      {/* Distance & wind dock — drag up to open, drag down / tap to tuck away */}
+      <div className="fixed inset-x-0 bottom-0 z-40">
+        <div className="mx-auto w-full max-w-md">
+          <div
+            className={`rounded-t-3xl border-x border-t border-turf-700 bg-turf-900/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_30px_rgba(0,0,0,0.5)] backdrop-blur ${
+              dragging ? '' : 'transition-transform duration-200 ease-out'
+            }`}
+            style={{ transform: `translateY(${dragY}px)` }}
+          >
+            <div
+              role="button"
+              aria-expanded={open}
+              aria-label="Distance and wind controls"
+              className="touch-none select-none px-4 pb-2 pt-3"
+              onPointerDown={onHandleDown}
+              onPointerMove={onHandleMove}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+            >
+              <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-turf-600" />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-turf-300">
+                  Distance &amp; wind
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="text-sm font-semibold tabular-nums text-turf-100">
+                    {disp} {u} · {windDisp} {WIND_UNIT(sys)}
+                  </span>
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                    className={`h-4 w-4 shrink-0 text-turf-300 transition-transform ${open ? 'rotate-180' : ''}`}
+                  >
+                    <path
+                      d="m6 15 6-6 6 6"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              </div>
+              {!open && (
+                <p className="mt-1 text-[11px] leading-tight text-turf-400">
+                  Drag up (or tap) to adjust · tucks away so your options stay in view
+                </p>
               )}
             </div>
-            {Math.abs(crossRight) >= 3 && (
-              <p className="mt-2 text-sm text-amber-300">
-                Crosswind: start your ball ~{Math.round(toDisplayYards(crossAimYards(best.effectiveCarry, crossRight), u))} {u}{' '}
-                {crossRight > 0 ? 'left' : 'right'} of the flag.
-              </p>
-            )}
-            {best.shot.notes && <p className="mt-2 text-sm italic text-turf-200">{best.shot.notes}</p>}
-          </article>
-        )}
-
-        {noClose && best && (
-          <div className="rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3 text-sm text-amber-200">
-            No stock shot flies this number.{' '}
-            {longestShort && (
-              <>
-                <b>
-                  {longestShort.shot.club} {longestShort.shot.name}
-                </b>{' '}
-                comes up {Math.round(-longestShort.diff)} {u} short
-              </>
-            )}
-            {longestShort && shortestLong ? '; ' : ''}
-            {shortestLong && (
-              <>
-                <b>
-                  {shortestLong.shot.club} {shortestLong.shot.name}
-                </b>{' '}
-                flies {Math.round(shortestLong.diff)} {u} past
-              </>
-            )}
-            . Consider an easier or harder swing — or add a shot for this gap in the Arsenal tab.
-          </div>
-        )}
-
-        {ranked.length > 1 && (
-          <ul className="space-y-2">
-            {ranked.slice(1, 6).map((r) => (
-              <li key={r.shot.id} className="flex items-center justify-between rounded-xl bg-turf-800 px-4 py-3">
-                <div>
-                  <div className="font-medium">
-                    {r.shot.club} <span className="text-turf-300">· {r.shot.name}</span>
+            {open && (
+              <div className="sheet-up max-h-[62vh] space-y-3 overflow-y-auto overscroll-contain px-4 pb-4">
+                <section className="rounded-2xl bg-turf-800 p-4">
+                  <SectionTitle>Distance to pin</SectionTitle>
+                  <div className="mt-2 flex items-center justify-between gap-1.5">
+                    <StepBtn label="−5" onClick={() => setDisp(disp - 5)} disabled={disp <= 0} />
+                    <StepBtn label="−1" onClick={() => setDisp(disp - 1)} disabled={disp <= 0} />
+                    <div className="min-w-24 text-center text-5xl font-semibold">
+                      {disp}
+                      <span className="ml-1 text-lg font-medium text-turf-300">{u}</span>
+                    </div>
+                    <StepBtn label="+1" onClick={() => setDisp(disp + 1)} />
+                    <StepBtn label="+5" onClick={() => setDisp(disp + 5)} />
                   </div>
-                  <div className="text-xs text-turf-300">flies {fmtDist(r.effectiveCarry, u)}</div>
-                </div>
-                <DiffBadge diff={r.diff} u={u} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                  <input
+                    type="range"
+                    min={20}
+                    max={320}
+                    value={Math.min(320, Math.max(20, disp))}
+                    onChange={(e) => setDisp(Number(e.target.value))}
+                    className="mt-3 w-full"
+                    aria-label="Distance to pin"
+                  />
+                  <p className="mt-1 text-xs text-turf-400">
+                    A slope-adjusted laser reading is perfect here — the app treats it as the number to cover.
+                  </p>
+                </section>
+
+                <section className="rounded-2xl bg-turf-800 p-4">
+                  <SectionTitle>Wind</SectionTitle>
+                  <div className="mt-2 flex items-center gap-4">
+                    <WindControl />
+                    <div className="flex-1">
+                      <div className="text-center text-4xl font-semibold">
+                        {windDisp}
+                        <span className="ml-1 text-base font-medium text-turf-300">{WIND_UNIT(sys)}</span>
+                      </div>
+                      <div className="mt-2 flex justify-center gap-1.5">
+                        <StepBtn label="−5" onClick={() => setWind(windDisp - 5)} disabled={windDisp === 0} />
+                        <StepBtn label="−1" onClick={() => setWind(windDisp - 1)} disabled={windDisp === 0} />
+                        <StepBtn label="+1" onClick={() => setWind(windDisp + 1)} />
+                        <StepBtn label="+5" onClick={() => setWind(windDisp + 5)} />
+                      </div>
+                      <p className="mt-3 text-center text-sm text-turf-200">{windLabel(c, sys)}</p>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-turf-400">
+                    Drag the dial — the arrow points where the wind blows. Up = toward the green (helping).
+                  </p>
+                </section>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

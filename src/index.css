@@ -27,3 +27,20 @@ body {
 input[type="range"] {
   accent-color: #a3e635;
 }
+
+/* Bottom-sheet entrance for the distance & wind dock */
+@keyframes sheet-up {
+  from {
+    transform: translateY(14px);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.sheet-up {
+  animation: sheet-up 0.16s ease-out;
+}
+
