@@ -1,0 +1,14 @@
+{
+  "name": "Caddie",
+  "short_name": "Caddie",
+  "description": "Your shot arsenal with plays-like distances",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#070b08",
+  "theme_color": "#0c120d",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -1,0 +1,87 @@
+# Caddie
+
+A phone-first golf caddie web app. It showcases every shot in your arsenal —
+each club + swing combination with its carry distance, trajectory, and shape —
+and, given the distance to the flag and the conditions (wind, slope,
+temperature, altitude), highlights the shot that best covers the number.
+
+Built with Vite + React + TypeScript + Tailwind. Installable on your phone as a
+PWA; all data lives on-device (localStorage) so it works offline on the course.
+
+## Quick start
+
+```bash
+npm install
+npm run dev      # prints a local URL and a network URL — open the network one on your phone
+npm run build    # type-checks and builds to dist/
+```
+
+> **Note:** `package.json` pins rollup to its WASM build (`@rollup/wasm-node`
+> via `overrides`) because this machine's Windows Application Control policy
+> blocks rollup's native binary. Builds run slightly slower but work
+> identically everywhere — locally and on Vercel. If your policy ever allows
+> the native binary, you can remove the override.
+
+## Deploying (GitHub + Vercel)
+
+1. Push this repo to GitHub.
+2. In Vercel, import the repo — it auto-detects Vite. No env vars, no backend.
+3. Every push deploys. `base: './'` in `vite.config.ts` means the build also
+   works from any static host path (GitHub Pages included).
+
+## Installing on your phone
+
+- **Android/Chrome:** open the deployed URL → menu → "Add to Home screen".
+- **iOS/Safari:** Share → "Add to Home Screen". (The icon is SVG; drop a 180px
+  `apple-touch-icon.png` into `public/` and reference it in `index.html` if you
+  want a nicer iOS icon.)
+
+Once installed it runs fullscreen and works with no signal — the service worker
+caches the app shell.
+
+## The distance model
+
+Your arsenal's stock carries are defined under **standard conditions**: no wind,
+flat, 70°F, sea level. The app converts the situation into two numbers and
+matches them:
+
+- **Required carry** = pin distance + elevation adjustment (uphill adds,
+  downhill subtracts).
+- **Effective carry** (per shot) = stock carry × wind × temperature × altitude.
+
+Wind is applied as a percentage scaled by the shot's trajectory — high-flying
+shots are hurt more by a headwind than punch shots, which is exactly why the
+arsenal concept beats a plain club list. Overshoots are penalized when ranking
+(flying the green is worse than coming up short). Crosswinds get a rough aim
+hint instead of a distance change.
+
+Tuning factors (all adjustable in Settings → Model tuning):
+
+| Factor | Default | Meaning |
+|---|---|---|
+| Headwind | 0.8%/mph | distance lost per mph into the wind |
+| Tailwind | 0.45%/mph | distance gained per mph behind |
+| Temperature | 0.15%/°F | per °F away from 70°F |
+| Altitude | 2%/1000 ft | distance gained per 1,000 ft above sea level |
+| Uphill | 1.0 yd/ft | added to required carry per foot of climb |
+| Downhill | 0.5 yd/ft | removed per foot of drop |
+| Overshoot penalty | 1.5× | ranking weight for flying past the number |
+
+These are caddie heuristics, not physics — play a few rounds, compare results,
+tune them to your game.
+
+## Where the data lives
+
+Everything (shots, conditions, settings) is stored in `localStorage` on the
+device. **Export a backup** from Settings before switching phones. The state
+shape is a single JSON document (`AppState` in `src/types.ts`), deliberately
+designed so a sync layer (e.g. Supabase) can be added later without changing
+the UI.
+
+## Roadmap ideas
+
+- Supabase sync + multi-device backup
+- GPS distance-to-pin (needs course green coordinates) and shot tracking
+- Dispersion per shot (average + spread, not just stock carry)
+- Wind in km/h / metric elevation, if you play in metric countries
+- Green-side context (front/middle/back pin, hazards)
