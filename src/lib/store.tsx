@@ -45,7 +45,7 @@ export function freshState(): AppState {
   return {
     version: STATE_VERSION,
     shots: sampleShots(),
-    conditions: { pinDistance: 150, windSpeed: 0, windDir: 0 },
+    conditions: { pinDistance: 150, windSpeed: 0, windDir: 0, slopeDeg: 0 },
     settings: {
       units: 'yd',
       unitsSystem: 'metric',
@@ -143,6 +143,7 @@ export function normalizeState(input: unknown): AppState {
       pinDistance: clamp(finiteOr(c.pinDistance, base.conditions.pinDistance), 0, 400),
       windSpeed: clamp(finiteOr(c.windSpeed, 0), 0, 40),
       windDir: ((finiteOr(c.windDir, 0) % 360) + 360) % 360,
+      slopeDeg: clamp(finiteOr(c.slopeDeg, 0), -30, 30),
     },
     settings: {
       units: st.units === 'm' ? 'm' : 'yd',
@@ -156,6 +157,7 @@ export function normalizeState(input: unknown): AppState {
         tailwindPctPerMph: finiteOr(f.tailwindPctPerMph, DEFAULT_FACTORS.tailwindPctPerMph),
         tempPctPerDegF: finiteOr(f.tempPctPerDegF, DEFAULT_FACTORS.tempPctPerDegF),
         altPctPer1000Ft: finiteOr(f.altPctPer1000Ft, DEFAULT_FACTORS.altPctPer1000Ft),
+        slopePctPerDeg: finiteOr(f.slopePctPerDeg, DEFAULT_FACTORS.slopePctPerDeg),
         overshootPenalty: finiteOr(f.overshootPenalty, DEFAULT_FACTORS.overshootPenalty),
       },
     },

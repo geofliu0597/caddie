@@ -24,6 +24,7 @@ export const DEFAULT_FACTORS: Factors = {
   tailwindPctPerMph: 0.45,
   tempPctPerDegF: 0.15,
   altPctPer1000Ft: 2,
+  slopePctPerDeg: 1,
   overshootPenalty: 1.5,
 };
 
@@ -119,9 +120,13 @@ export function windComponents(c: Conditions): WindParts {
   return { tail, head: -tail, crossRight };
 }
 
-export function windLabel(c: Conditions, sys: UnitsSystem = 'imperial'): string {
+/**
+ * Human description of the wind, as separate components so callers can lay
+ * them out on their own lines (or join with ' + ' inline).
+ */
+export function windLabel(c: Conditions, sys: UnitsSystem = 'imperial'): string[] {
   const speed = finiteOr(c?.windSpeed, 0);
-  if (speed < 2) return 'Calm';
+  if (speed < 2) return ['Calm'];
   const { tail, head, crossRight } = windComponents(c);
   const w = (mph: number) => `${Math.round(windToDisplay(mph, sys))} ${WIND_UNIT(sys)}`;
   const parts: string[] = [];
@@ -132,7 +137,7 @@ export function windLabel(c: Conditions, sys: UnitsSystem = 'imperial'): string 
     parts.push(`${w(cross)} ${crossRight > 0 ? 'left → right' : 'right → left'}`);
   }
   if (parts.length === 0) parts.push(`${w(speed)} quartering`);
-  return parts.join(' + ');
+  return parts;
 }
 
 // ---- the model -------------------------------------------------------------
@@ -164,8 +169,16 @@ export function estimateShot(shot: Shot, c: Conditions, settings: Settings): Sho
   const altPct =
     (finiteOr(settings.courseAltFt, 0) / 1000) *
     finiteOr(f.altPctPer1000Ft, DEFAULT_FACTORS.altPctPer1000Ft);
+  // Uphill (+slopeDeg) makes the ball land on rising ground — shorter carry;
+  // downhill lets it run past the flat-carry point — longer.
+  const slopePct =
+    -finiteOr(c.slopeDeg, 0) * finiteOr(f.slopePctPerDeg, DEFAULT_FACTORS.slopePctPerDeg);
   const effectiveCarry =
-    finiteOr(shot.carry, 0) * (1 + windPct / 100) * (1 + tempPct / 100) * (1 + altPct / 100);
+    finiteOr(shot.carry, 0) *
+    (1 + windPct / 100) *
+    (1 + tempPct / 100) *
+    (1 + altPct / 100) *
+    (1 + slopePct / 100);
   const diff = effectiveCarry - finiteOr(c.pinDistance, 0);
   const score = diff >= 0 ? diff * finiteOr(f.overshootPenalty, DEFAULT_FACTORS.overshootPenalty) : -diff;
   return { shot, effectiveCarry, diff, score, windPct };

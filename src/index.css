@@ -28,19 +28,19 @@ input[type="range"] {
   accent-color: #a3e635;
 }
 
-/* Bottom-sheet entrance for the distance & wind dock */
-@keyframes sheet-up {
-  from {
-    transform: translateY(14px);
-    opacity: 0.5;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+/* Smooth height animation for the distance & wind dock (opens and tucks) */
+.sheet-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.24s ease;
 }
 
-.sheet-up {
-  animation: sheet-up 0.16s ease-out;
+.sheet-body.open {
+  grid-template-rows: 1fr;
+}
+
+.sheet-body > div {
+  overflow: hidden;
+  min-height: 0;
 }
 

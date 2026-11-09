@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import type { Conditions } from '../types';
 import { useApp } from '../lib/store';
@@ -22,6 +22,7 @@ import {
   windToDisplay,
 } from '../lib/golf';
 import { WindControl } from './WindControl';
+import { SlopeControl } from './SlopeControl';
 
 function StepBtn({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
@@ -83,14 +84,18 @@ export function PlayScreen() {
 
   const tempF = finiteOr(s.tempF, BASELINE_TEMP_F);
   const altFt = finiteOr(s.courseAltFt, 0);
+  const slopeDeg = finiteOr(c.slopeDeg, 0);
+  const windParts = windLabel(c, sys);
   const adjustBits: string[] = [];
-  if (finiteOr(c.windSpeed, 0) >= 2) adjustBits.push(windLabel(c, sys));
+  if (finiteOr(c.windSpeed, 0) >= 2) adjustBits.push(windParts.join(' + '));
   if (tempF !== BASELINE_TEMP_F)
     adjustBits.push(`${Math.round(tempToDisplay(tempF, sys))}°${sys === 'metric' ? 'C' : 'F'}`);
   if (altFt !== 0)
     adjustBits.push(
       `${Math.round(altToDisplay(altFt, sys)).toLocaleString()} ${sys === 'metric' ? 'm' : 'ft'} elev.`,
     );
+  if (slopeDeg !== 0)
+    adjustBits.push(`${Math.abs(Math.round(slopeDeg))}° ${slopeDeg > 0 ? 'uphill' : 'downhill'}`);
 
   // ---- Distance & wind dock -------------------------------------------------
   // A bottom sheet: drag up on the handle to reveal the inputs, drag down
@@ -100,6 +105,23 @@ export function PlayScreen() {
   const [dragY, setDragY] = useState(0);
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ y: number; t: number; moved: number } | null>(null);
+
+  // Cap the open sheet so the full Best match card stays visible: measure where
+  // that card ends and let the sheet fill exactly the space beneath it. The
+  // cards inside scroll when they don't fit.
+  const bestRef = useRef<HTMLElement | null>(null);
+  const [sheetMax, setSheetMax] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const measure = () => {
+      const vh = window.innerHeight;
+      const cardBottom = bestRef.current?.getBoundingClientRect().bottom ?? vh * 0.42;
+      setSheetMax(Math.round(Math.min(vh * 0.72, Math.max(220, vh - cardBottom - 12))));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [open]);
 
   const onHandleDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -145,7 +167,7 @@ export function PlayScreen() {
           )}
 
           {best && (
-            <article className="rounded-2xl border-2 border-lime-400/60 bg-turf-700 p-4">
+            <article ref={bestRef} className="rounded-2xl border-2 border-lime-400/60 bg-turf-700 p-4">
               <div className="flex items-center justify-between">
                 <span className="rounded-full bg-lime-400 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-turf-950">
                   Best match
@@ -238,7 +260,7 @@ export function PlayScreen() {
               role="button"
               aria-expanded={open}
               aria-label="Distance and wind controls"
-              className="touch-none select-none px-4 pb-2 pt-3"
+              className="touch-none select-none px-4 pb-2.5 pt-3"
               onPointerDown={onHandleDown}
               onPointerMove={onHandleMove}
               onPointerUp={endDrag}
@@ -246,37 +268,31 @@ export function PlayScreen() {
             >
               <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-turf-600" />
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-turf-300">
-                  Distance &amp; wind
+                <span className="text-sm font-semibold tabular-nums text-turf-100">
+                  {disp} {u} · {windDisp} {WIND_UNIT(sys)}
                 </span>
-                <span className="flex items-center gap-2">
-                  <span className="text-sm font-semibold tabular-nums text-turf-100">
-                    {disp} {u} · {windDisp} {WIND_UNIT(sys)}
-                  </span>
-                  <svg
-                    viewBox="0 0 24 24"
-                    aria-hidden
-                    className={`h-4 w-4 shrink-0 text-turf-300 transition-transform ${open ? 'rotate-180' : ''}`}
-                  >
-                    <path
-                      d="m6 15 6-6 6 6"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                  className={`h-4 w-4 shrink-0 text-turf-300 transition-transform ${open ? 'rotate-180' : ''}`}
+                >
+                  <path
+                    d="m6 15 6-6 6 6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </div>
-              {!open && (
-                <p className="mt-1 text-[11px] leading-tight text-turf-400">
-                  Drag up (or tap) to adjust · tucks away so your options stay in view
-                </p>
-              )}
             </div>
-            {open && (
-              <div className="sheet-up max-h-[62vh] space-y-3 overflow-y-auto overscroll-contain px-4 pb-4">
+            <div className={`sheet-body ${open ? 'open' : ''}`}>
+              <div>
+                <div
+                  className="space-y-3 overflow-y-auto overscroll-contain px-4 pb-4"
+                  style={{ maxHeight: sheetMax ?? undefined }}
+                >
                 <section className="rounded-2xl bg-turf-800 p-4">
                   <SectionTitle>Distance to pin</SectionTitle>
                   <div className="mt-2 flex items-center justify-between gap-1.5">
@@ -318,15 +334,33 @@ export function PlayScreen() {
                         <StepBtn label="+1" onClick={() => setWind(windDisp + 1)} />
                         <StepBtn label="+5" onClick={() => setWind(windDisp + 5)} />
                       </div>
-                      <p className="mt-3 text-center text-sm text-turf-200">{windLabel(c, sys)}</p>
+                      <p className="mt-3 text-center text-sm leading-snug text-turf-200">
+                        {windParts.map((part) => (
+                          <span key={part} className="block">
+                            {part}
+                          </span>
+                        ))}
+                      </p>
                     </div>
                   </div>
                   <p className="mt-2 text-xs text-turf-400">
                     Drag the dial — the arrow points where the wind blows. Up = toward the green (helping).
                   </p>
                 </section>
+
+                <section className="rounded-2xl bg-turf-800 p-4">
+                  <SectionTitle>Front-back slope</SectionTitle>
+                  <div className="mt-2">
+                    <SlopeControl value={slopeDeg} onChange={(deg) => setCond({ slopeDeg: deg })} />
+                  </div>
+                  <p className="mt-2 text-xs text-turf-400">
+                    Tilt of the ground from ball to green. Keep at 0° with a slope-adjusted laser —
+                    for GPS or feel numbers.
+                  </p>
+                </section>
+                </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

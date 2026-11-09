@@ -65,9 +65,6 @@ export function WindControl() {
       <text x={C} y={24} textAnchor="middle" className="fill-turf-200 text-[9px] font-semibold tracking-widest">
         GREEN
       </text>
-      <text x={C} y={SIZE - 8} textAnchor="middle" className="fill-turf-200 text-[9px] font-semibold tracking-widest">
-        YOU
-      </text>
       <g transform={`rotate(${dir} ${C} ${C})`}>
         <line x1={C} y1={C} x2={C} y2={42} className="stroke-lime-400" strokeWidth={5} strokeLinecap="round" />
         <path d={`M ${C} 30 L ${C + 10} 50 L ${C - 10} 50 Z`} className="fill-lime-400" />

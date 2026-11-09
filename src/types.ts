@@ -15,7 +15,7 @@ export interface Shot {
   /** Override for how much wind affects this shot (1 = normal). Null = derived from trajectory. */
   windSensitivity?: number | null;
   notes?: string;
-  /** Marks rows that came from the built-in sample data. */
+  /** Marks rows that came from the built-in sample arsenal. */
   sample?: boolean;
 }
 
@@ -27,6 +27,8 @@ export interface Conditions {
   windSpeed: number;
   /** Direction the wind blows TOWARD, degrees. 0 = toward the green (tailwind), 90 = left-to-right, 180 = back at you (headwind). */
   windDir: number;
+  /** Slope from ball to green, degrees. + = uphill (green higher, plays shorter), − = downhill. Leave 0 with a slope-adjusted laser. */
+  slopeDeg: number;
 }
 
 /** Tunable constants for the model. See README for what each does. */
@@ -35,6 +37,8 @@ export interface Factors {
   tailwindPctPerMph: number;
   tempPctPerDegF: number;
   altPctPer1000Ft: number;
+  /** Carry change per degree of uphill slope to the green. */
+  slopePctPerDeg: number;
   /** Overshoots are worse than coming up short — this multiplies the "flies past" penalty when ranking. */
   overshootPenalty: number;
 }

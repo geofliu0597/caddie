@@ -46,9 +46,9 @@ Your arsenal's stock carries are defined under **standard conditions**: no wind,
 the app ranks shots by how close they land to your number:
 
 - **The number to cover** = the distance you enter on the Play tab. A
-  slope-adjusted laser reading is ideal — elevation is already baked into it,
-  and the app deliberately does **not** adjust for slope itself, so nothing is
-  ever double-counted.
+  slope-adjusted laser reading is ideal — with one, keep the Play tab's
+  front-back slope at 0° and nothing is ever double-counted. Using GPS or feel
+  numbers instead? Enter the ground's tilt there and every shot adjusts for it.
 - **Effective carry** (per shot) = stock carry × wind × temperature × altitude.
 
 Wind is applied as a percentage scaled by the shot's trajectory — high-flying
@@ -71,6 +71,7 @@ Tuning factors (all adjustable in Settings → Model tuning):
 | Tailwind | 0.45%/mph | distance gained per mph behind |
 | Temperature | 0.15%/°F | per °F away from 68°F (20°C) |
 | Altitude | 2%/1000 ft | distance gained per 1,000 ft above sea level |
+| Slope | 1%/deg | carry change per degree of uphill slope to the green (uphill plays shorter) |
 | Overshoot penalty | 1.5× | ranking weight for flying past the number |
 
 These are caddie heuristics, not physics — play a few rounds, compare results,

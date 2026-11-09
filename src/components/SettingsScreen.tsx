@@ -99,6 +99,7 @@ export function SettingsScreen() {
     tailwindPctPerMph: finiteOr(s.factors?.tailwindPctPerMph, DEFAULT_FACTORS.tailwindPctPerMph),
     tempPctPerDegF: finiteOr(s.factors?.tempPctPerDegF, DEFAULT_FACTORS.tempPctPerDegF),
     altPctPer1000Ft: finiteOr(s.factors?.altPctPer1000Ft, DEFAULT_FACTORS.altPctPer1000Ft),
+    slopePctPerDeg: finiteOr(s.factors?.slopePctPerDeg, DEFAULT_FACTORS.slopePctPerDeg),
     overshootPenalty: finiteOr(s.factors?.overshootPenalty, DEFAULT_FACTORS.overshootPenalty),
   };
   const setS = (patch: Partial<typeof s>) => dispatch({ type: 'setSettings', patch });
@@ -194,7 +195,8 @@ export function SettingsScreen() {
         <SectionTitle>Round conditions</SectionTitle>
         <p className="mt-1 text-xs text-turf-400">
           Set once when you arrive — these change how far your shots fly, not the number you cover.
-          Your laser already handles slope, so there's no elevation input.
+          Slope to the green is entered per shot on the Play tab (keep it at 0° if your laser
+          slope-adjusts).
         </p>
         <ConditionChips
           label={`Temperature (${TEMP_UNIT(sys)})`}
@@ -280,6 +282,16 @@ export function SettingsScreen() {
             step={sys === 'metric' ? 0.3 : 0.1}
             fmt={(v) => `${v.toFixed(1)}% / 1000 ${sys === 'metric' ? 'm' : 'ft'}`}
             onChange={(v) => setF({ altPctPer1000Ft: perAltApply(v) })}
+          />
+          <FactorRow
+            label="Slope"
+            hint="Carry change per degree of uphill ground to the green — uphill lands sooner (shorter), downhill later."
+            value={f.slopePctPerDeg}
+            min={0}
+            max={3}
+            step={0.1}
+            fmt={(v) => `${v.toFixed(1)}% / deg`}
+            onChange={(v) => setF({ slopePctPerDeg: v })}
           />
           <FactorRow
             label="Overshoot penalty"
