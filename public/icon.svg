@@ -1,7 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <!-- Rounded variant: browser tabs / favicon. -->
   <rect width="512" height="512" rx="110" fill="#0c120d"/>
-  <ellipse cx="256" cy="380" rx="180" ry="72" fill="#5a8265"/>
-  <rect x="246" y="92" width="14" height="288" rx="7" fill="#e9f2ea"/>
-  <rect x="253" y="92" width="120" height="80" fill="#a3e635"/>
+  <ellipse cx="256" cy="380" rx="180" ry="72" fill="#3e5a45"/>
+  <ellipse cx="256" cy="380" rx="104" ry="41" fill="#5a8265"/>
+  <rect x="213" y="92" width="14" height="288" rx="7" fill="#e9f2ea"/>
+  <path d="M220 92 L220 176 L328 134 Z" fill="#a3e635"/>
 </svg>
