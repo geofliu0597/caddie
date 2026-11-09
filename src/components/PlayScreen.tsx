@@ -146,7 +146,7 @@ export function PlayScreen() {
       if (dy > 90 || (flick && dy > 0)) setOpen(false);
       else setOpen(true);
     } else {
-      const revealed = d.h + dy;
+      const revealed = -dy; // how far the sheet was actually pulled out of the bottom edge
       if (revealed > Math.min(d.h * 0.4, 140) || (flick && dy < 0)) setOpen(true);
       else setOpen(false);
     }

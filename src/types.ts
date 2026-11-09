@@ -54,6 +54,8 @@ export interface Settings {
   tempF: number;
   /** Course elevation above sea level, feet (affects how far the ball flies). */
   courseAltFt: number;
+  /** Day form, % — how you're striking it today vs. the baseline arsenal numbers. −20..+20. */
+  formPct: number;
   factors: Factors;
 }
 

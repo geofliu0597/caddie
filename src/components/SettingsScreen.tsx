@@ -223,6 +223,18 @@ export function SettingsScreen() {
           }
           onSelect={(v) => setS({ courseAltFt: v })}
         />
+        <div className="mt-3">
+          <FactorRow
+            label="How am I feeling"
+            hint="Your arsenal numbers are a baseline from the sim or range — shift all of them for how you're striking it today. Good day = +, rough day = −."
+            value={finiteOr(s.formPct, 0)}
+            min={-20}
+            max={20}
+            step={1}
+            fmt={(v) => `${v > 0 ? '+' : ''}${Math.round(v)}%`}
+            onChange={(v) => setS({ formPct: v })}
+          />
+        </div>
       </section>
 
       {/* Model tuning */}

@@ -174,12 +174,16 @@ export function estimateShot(shot: Shot, c: Conditions, settings: Settings): Sho
   // and adds effective loft — shorter carry; a downhill lie delofts — longer.
   const slopePct =
     -finiteOr(c.slopeDeg, 0) * finiteOr(f.slopePctPerDeg, DEFAULT_FACTORS.slopePctPerDeg);
+  // Day form: the arsenal numbers are a sim/range baseline; shift them all for
+  // how the golfer is striking it today.
+  const formPct = finiteOr(settings.formPct, 0);
   const effectiveCarry =
     finiteOr(shot.carry, 0) *
     (1 + windPct / 100) *
     (1 + tempPct / 100) *
     (1 + altPct / 100) *
-    (1 + slopePct / 100);
+    (1 + slopePct / 100) *
+    (1 + formPct / 100);
   const diff = effectiveCarry - finiteOr(c.pinDistance, 0);
   const score = diff >= 0 ? diff * finiteOr(f.overshootPenalty, DEFAULT_FACTORS.overshootPenalty) : -diff;
   return { shot, effectiveCarry, diff, score, windPct };

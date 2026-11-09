@@ -60,10 +60,13 @@ arsenal concept beats a plain club list. Overshoots are penalized when ranking
 hint instead of a distance change.
 
 Temperature and course altitude live in **Settings → Round conditions** — set
-them once when you arrive, not per swing. Conditions (wind, temperature,
-altitude) display in **metric by default** (°C, km/h, m) with an imperial
-toggle in Settings; golf distances keep their own **yards-by-default** toggle,
-since golf is played in yards almost everywhere.
+them once when you arrive, not per swing. The same section has a **"How am I
+feeling"** slider (−20%…+20%): arsenal numbers are a sim/range baseline, and
+this shifts all of them for how you're striking it today, without touching the
+arsenal itself. Conditions (wind, temperature, altitude) display in **metric by
+default** (°C, km/h, m) with an imperial toggle in Settings; golf distances keep
+their own **yards-by-default** toggle, since golf is played in yards almost
+everywhere.
 
 Tuning factors (all adjustable in Settings → Model tuning):
 

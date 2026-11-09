@@ -51,6 +51,7 @@ export function freshState(): AppState {
       unitsSystem: 'metric',
       tempF: BASELINE_TEMP_F,
       courseAltFt: 0,
+      formPct: 0,
       factors: { ...DEFAULT_FACTORS },
     },
   };
@@ -152,6 +153,7 @@ export function normalizeState(input: unknown): AppState {
       // clean 20°C / 68°F baseline too.
       tempF: tempF === 70 ? BASELINE_TEMP_F : tempF,
       courseAltFt: finiteOr(st.courseAltFt, 0),
+      formPct: clamp(finiteOr(st.formPct, 0), -20, 20),
       factors: {
         headwindPctPerMph: finiteOr(f.headwindPctPerMph, DEFAULT_FACTORS.headwindPctPerMph),
         tailwindPctPerMph: finiteOr(f.tailwindPctPerMph, DEFAULT_FACTORS.tailwindPctPerMph),
