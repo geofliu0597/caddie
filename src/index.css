@@ -26,6 +26,19 @@ body {
 
 input[type="range"] {
   accent-color: #a3e635;
+  /* Sliders own their gesture: without this, vertical finger drift inside a
+     scrollable sheet starts a scroll and cancels the slider drag. */
+  touch-action: none;
+}
+
+/* App-like: scrolling works everywhere, scrollbars are just not drawn
+   (phones already overlay-hide them; desktop shows none). */
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
 }
 
 /* Smooth height animation for the distance & wind dock (opens and tucks) */
@@ -37,6 +50,10 @@ input[type="range"] {
 
 .sheet-body.open {
   grid-template-rows: 1fr;
+}
+
+.sheet-body.no-anim {
+  transition: none;
 }
 
 .sheet-body > div {

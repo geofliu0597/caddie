@@ -83,42 +83,53 @@ export function PlayScreen() {
   const windParts = windLabel(c, sys);
 
   // ---- Distance & wind dock -------------------------------------------------
-  // A bottom sheet: drag up on the handle to reveal the inputs, drag down
-  // (or tap the handle) to tuck it away. The sheet caps its height so the
-  // primary info — "Your options" above it — is never fully covered.
+  // A bottom sheet. Dragging the handle moves the sheet with the finger in
+  // both directions: pulling up peels it out of the bottom edge, pushing down
+  // sinks it back. Release past a threshold (or flick, or tap) and the sheet
+  // settles open or tucked with a smooth transition.
   const [open, setOpen] = useState(false);
   const [dragY, setDragY] = useState(0);
   const [dragging, setDragging] = useState(false);
-  const drag = useRef<{ y: number; t: number; moved: number } | null>(null);
+  const drag = useRef<{ y: number; t: number; moved: number; h: number; fromOpen: boolean } | null>(null);
 
-  // Cap the open sheet so the full Best match card stays visible: measure where
-  // that card ends and let the sheet fill exactly the space beneath it. The
-  // cards inside scroll when they don't fit.
+  // The open sheet fills the space between the bottom of the Best match card
+  // and the screen edge (minus this handle), so the full card stays visible;
+  // the cards inside scroll when there are more than fit.
   const bestRef = useRef<HTMLElement | null>(null);
+  const handleRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [sheetMax, setSheetMax] = useState<number | null>(null);
   useLayoutEffect(() => {
-    if (!open) return;
     const measure = () => {
       const vh = window.innerHeight;
       const cardBottom = bestRef.current?.getBoundingClientRect().bottom ?? vh * 0.42;
-      setSheetMax(Math.round(Math.min(vh * 0.72, Math.max(220, vh - cardBottom - 12))));
+      const handleH = handleRef.current?.offsetHeight ?? 64;
+      setSheetMax(Math.round(Math.min(vh * 0.72, Math.max(200, vh - cardBottom - 12 - handleH))));
     };
     measure();
     window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [open]);
+    window.addEventListener('scroll', measure, { passive: true });
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure);
+    };
+  }, []);
 
   const onHandleDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
-    drag.current = { y: e.clientY, t: performance.now(), moved: 0 };
+    const h = scrollRef.current ? Math.ceil(scrollRef.current.getBoundingClientRect().height) : 0;
+    drag.current = { y: e.clientY, t: performance.now(), moved: 0, h, fromOpen: open };
     setDragging(true);
+    if (!open) setDragY(h); // slide the opened sheet down to just off-screen; only the handle peeks
   };
   const onHandleMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const d = drag.current;
     if (!d) return;
     const dy = e.clientY - d.y;
     d.moved = Math.max(d.moved, Math.abs(dy));
-    if (open) setDragY(Math.max(0, dy)); // the open sheet follows the finger down
+    // Follow the finger: pushing down sinks the open sheet; pulling up peels
+    // the tucked sheet out of the bottom edge.
+    setDragY(d.fromOpen ? Math.max(0, dy) : Math.min(d.h, Math.max(0, d.h + dy)));
   };
   const endDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
     const d = drag.current;
@@ -129,11 +140,21 @@ export function PlayScreen() {
     const dt = performance.now() - d.t;
     const flick = dt < 260 && Math.abs(dy) > 24;
     const tap = d.moved < 8 && dt < 450;
-    setDragY(0);
-    if (tap) setOpen((o) => !o);
-    else if (open && (dy > 90 || (flick && dy > 0))) setOpen(false);
-    else if (!open && (dy < -40 || (flick && dy < 0))) setOpen(true);
+    setDragY(0); // settle to the resting position with a transition
+    if (tap) setOpen(!d.fromOpen);
+    else if (d.fromOpen) {
+      if (dy > 90 || (flick && dy > 0)) setOpen(false);
+      else setOpen(true);
+    } else {
+      const revealed = d.h + dy;
+      if (revealed > Math.min(d.h * 0.4, 140) || (flick && dy < 0)) setOpen(true);
+      else setOpen(false);
+    }
   };
+
+  // While a drag is in progress the sheet body is shown open (so it can be
+  // peeled out) but without its height transition — it tracks the finger.
+  const bodyOpen = open || dragging;
 
   return (
     <div>
@@ -238,6 +259,7 @@ export function PlayScreen() {
             style={{ transform: `translateY(${dragY}px)` }}
           >
             <div
+              ref={handleRef}
               role="button"
               aria-expanded={open}
               aria-label="Distance and wind controls"
@@ -268,9 +290,10 @@ export function PlayScreen() {
                 </svg>
               </div>
             </div>
-            <div className={`sheet-body ${open ? 'open' : ''}`}>
+            <div className={`sheet-body ${bodyOpen ? 'open' : ''} ${dragging ? 'no-anim' : ''}`}>
               <div>
                 <div
+                  ref={scrollRef}
                   className="space-y-3 overflow-y-auto overscroll-contain px-4 pb-4"
                   style={{ maxHeight: sheetMax ?? undefined }}
                 >
@@ -334,11 +357,7 @@ export function PlayScreen() {
                   <div className="mt-2">
                     <SlopeControl value={slopeDeg} onChange={(deg) => setCond({ slopeDeg: deg })} />
                   </div>
-                  <p className="mt-2 text-xs text-turf-400">
-                    The tilt under your feet — an uphill stance adds loft and shortens the shot, a
-                    downhill stance delofts and lengthens it. Your laser can't see this one: set it
-                    whenever you're standing on a slope.
-                  </p>
+                  <p className="mt-2 text-xs text-turf-400">The tilt under your feet</p>
                 </section>
                 </div>
               </div>
