@@ -298,10 +298,10 @@ export function PlayScreen() {
                       </p>
                     </InfoTip>
                   </div>
-                  <div className="mt-2 flex items-center justify-between gap-1.5">
+                  <div className="mt-2 flex items-center gap-1.5">
                     <StepBtn label="−5" onClick={() => setDisp(disp - 5)} disabled={disp <= 0} />
                     <StepBtn label="−1" onClick={() => setDisp(disp - 1)} disabled={disp <= 0} />
-                    <div className="min-w-24 text-center text-5xl font-semibold">
+                    <div className="min-w-0 flex-1 whitespace-nowrap text-center text-5xl font-semibold tabular-nums">
                       {disp}
                       <span className="ml-1 text-lg font-medium text-turf-300">{u}</span>
                     </div>
