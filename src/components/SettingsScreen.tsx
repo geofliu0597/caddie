@@ -188,6 +188,18 @@ export function SettingsScreen() {
             </p>
           </InfoTip>
         </div>
+        <div className="mt-3">
+          <FactorRow
+            label="How am I feeling"
+            hint="Your arsenal numbers are a baseline from the sim or range — shift all of them for how you're striking it today. Good day = +, rough day = −."
+            value={finiteOr(s.formPct, 0)}
+            min={-20}
+            max={20}
+            step={1}
+            fmt={(v) => `${v > 0 ? '+' : ''}${Math.round(v)}%`}
+            onChange={(v) => setS({ formPct: v })}
+          />
+        </div>
         <ConditionChips
           label={`Temperature (${TEMP_UNIT(sys)})`}
           info="Distances are defined at the 20°C (68°F) baseline. Colder air is denser and the ball flies shorter; warmer air flies farther — built-in constants set how much: ~1% of carry per 10°F (≈2% per 10°C)."
@@ -216,18 +228,6 @@ export function SettingsScreen() {
           }
           onSelect={(v) => setS({ courseAltFt: v })}
         />
-        <div className="mt-3">
-          <FactorRow
-            label="How am I feeling"
-            hint="Your arsenal numbers are a baseline from the sim or range — shift all of them for how you're striking it today. Good day = +, rough day = −."
-            value={finiteOr(s.formPct, 0)}
-            min={-20}
-            max={20}
-            step={1}
-            fmt={(v) => `${v > 0 ? '+' : ''}${Math.round(v)}%`}
-            onChange={(v) => setS({ formPct: v })}
-          />
-        </div>
       </section>
 
       {/* Data */}
