@@ -1,8 +1,9 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
-import type { Conditions } from '../types';
-import { useApp } from '../lib/store';
+import type { Conditions, PlayedShot } from '../types';
+import { newShotId, useApp } from '../lib/store';
 import {
+  BASELINE_TEMP_F,
   SHAPE_LABEL,
   TRAJECTORY_LABEL,
   WIND_UNIT,
@@ -22,6 +23,7 @@ import {
 import { WindControl } from './WindControl';
 import { SlopeControl } from './SlopeControl';
 import { InfoTip } from './InfoTip';
+import { PendingShotCard } from './PendingShotCard';
 
 function StepBtn({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
@@ -93,6 +95,29 @@ export function PlayScreen() {
       slopeEffectQualifier = yd < 0 ? 'shorter' : 'longer';
     }
   }
+
+  // Played-shot log (opt-in in Settings): one tap freezes the conditions and
+  // the prediction as the pending record; the result is entered at the ball.
+  const markHitting = () => {
+    if (!best) return;
+    const played: PlayedShot = {
+      id: newShotId(),
+      ts: Date.now(),
+      shotId: best.shot.id,
+      club: best.shot.club,
+      shotName: best.shot.name,
+      source: 'course',
+      snapshot: {
+        conditions: { ...c },
+        tempF: finiteOr(s.tempF, BASELINE_TEMP_F),
+        courseAltFt: finiteOr(s.courseAltFt, 0),
+        formPct: finiteOr(s.formPct, 0),
+      },
+      predicted: { effectiveCarry: best.effectiveCarry, diff: best.diff, windPct: best.windPct },
+      observation: null,
+    };
+    dispatch({ type: 'markHitting', played });
+  };
 
   // ---- Distance & wind dock -------------------------------------------------
   // A bottom sheet. Dragging the handle moves the sheet with the finger in
@@ -179,6 +204,8 @@ export function PlayScreen() {
             </p>
           )}
 
+          {state.pendingShot && s.logShots && <PendingShotCard />}
+
           {best && (
             <article ref={bestRef} className="rounded-2xl border-2 border-lime-400/60 bg-turf-700 p-4">
               <div className="flex items-center justify-between">
@@ -215,6 +242,15 @@ export function PlayScreen() {
                 )}
               </div>
               {best.shot.notes && <p className="mt-2 text-sm italic text-turf-200">{best.shot.notes}</p>}
+              {s.logShots && (
+                <button
+                  type="button"
+                  onClick={markHitting}
+                  className="mt-3 h-11 w-full rounded-xl bg-lime-400 text-sm font-bold uppercase tracking-wider text-turf-950 active:bg-lime-300"
+                >
+                  Hitting this
+                </button>
+              )}
             </article>
           )}
 

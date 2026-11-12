@@ -1,6 +1,13 @@
 import type { ChangeEvent } from 'react';
-import type { UnitsSystem } from '../types';
-import { BASELINE_TEMP_F, TEMP_UNIT, altFromDisplay, finiteOr, tempFromDisplay } from '../lib/golf';
+import type { PlayedShot, UnitsSystem } from '../types';
+import {
+  BASELINE_TEMP_F,
+  TEMP_UNIT,
+  altFromDisplay,
+  finiteOr,
+  tempFromDisplay,
+  toDisplayYards,
+} from '../lib/golf';
 import { STATE_VERSION, freshState, useApp } from '../lib/store';
 import { InfoTip } from './InfoTip';
 
@@ -93,9 +100,20 @@ function ConditionChips({
   );
 }
 
+/** "Nov 12, 2:05 PM" — round-sized timestamps for the log list. */
+function fmtWhen(ts: number): string {
+  return new Date(ts).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 export function SettingsScreen() {
   const { state, dispatch } = useApp();
   const s = state.settings;
+  const played = state.played;
   const sys: UnitsSystem = s.unitsSystem === 'imperial' ? 'imperial' : 'metric';
   const setS = (patch: Partial<typeof s>) => dispatch({ type: 'setSettings', patch });
 
@@ -107,6 +125,20 @@ export function SettingsScreen() {
     a.download = `caddie-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  /** "8 yd short" / "at pin" / "no result" — the observed outcome for the log list. */
+  const playedNote = (p: PlayedShot): string => {
+    const o = p.observation;
+    if (!o) return 'no result';
+    if (o.finish === 'atPin') return 'at pin';
+    const r = Math.max(0, Math.round(toDisplayYards(o.restingYd, s.units)));
+    return `${r} ${s.units} ${o.finish === 'short' ? 'short' : 'long'}`;
+  };
+
+  const playedCovered = (p: PlayedShot): string => {
+    const yd = finiteOr(p.snapshot.conditions.pinDistance, 0);
+    return `${Math.round(toDisplayYards(yd, s.units))} ${s.units}`;
   };
 
   const importData = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -228,6 +260,96 @@ export function SettingsScreen() {
           }
           onSelect={(v) => setS({ courseAltFt: v })}
         />
+      </section>
+
+      {/* Shot logging */}
+      <section className="rounded-2xl bg-turf-800 p-4">
+        <div className="flex items-center justify-between">
+          <SectionTitle>Shot logging</SectionTitle>
+          <InfoTip>
+            <p>
+              A course log of what you actually hit and where the ball finished — over time it shows
+              which arsenal numbers run long or short in real play.
+            </p>
+            <p className="mt-1">
+              Nothing is corrected automatically — your numbers are never changed for you.
+            </p>
+          </InfoTip>
+        </div>
+        <div className="mt-2 flex rounded-xl bg-turf-700 p-1">
+          {(['off', 'on'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setS({ logShots: v === 'on' })}
+              className={`h-10 flex-1 rounded-lg text-sm font-semibold ${
+                (s.logShots ? 'on' : 'off') === v ? 'bg-lime-400 text-turf-950' : 'text-turf-200'
+              }`}
+            >
+              {v === 'on' ? 'On' : 'Off'}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-turf-400">
+          Off by default. On adds one tap before a shot (“Hitting this” on the Play tab) and a quick
+          result entry after — the resting distance to the pin plus lie and strike tags.
+        </p>
+        {s.logShots && played.length === 0 && (
+          <p className="mt-2 text-xs text-turf-400">
+            Tap “Hitting this” on the Play tab before your next shot to start the log.
+          </p>
+        )}
+        {played.length > 0 && (
+          <div className="mt-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-turf-100">
+                {played.length} shot{played.length === 1 ? '' : 's'} logged
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm(`Delete all ${played.length} logged shots?`)) {
+                    dispatch({ type: 'clearPlayed' });
+                  }
+                }}
+                className="rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-300"
+              >
+                Clear log
+              </button>
+            </div>
+            {s.logShots && (
+              <>
+                <ul className="mt-2 space-y-1.5">
+                  {[...played].slice(-10).reverse().map((p) => (
+                    <li
+                      key={p.id}
+                      className="flex items-center justify-between gap-2 rounded-lg bg-turf-700/60 px-3 py-2 text-sm"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate font-medium text-turf-100">
+                          {p.shotName ? `${p.club} · ${p.shotName}` : p.club}
+                        </div>
+                        <div className="text-xs text-turf-300">
+                          {fmtWhen(p.ts)} · covered {playedCovered(p)}
+                        </div>
+                      </div>
+                      <span
+                        className={`shrink-0 text-xs font-semibold tabular-nums ${
+                          p.observation ? 'text-turf-100' : 'text-turf-400'
+                        }`}
+                      >
+                        {playedNote(p)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {played.length > 10 && (
+                  <p className="mt-1 text-xs text-turf-400">+{played.length - 10} older in exports</p>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Data */}

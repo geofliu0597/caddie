@@ -41,6 +41,64 @@ export interface Conditions {
 /** Units for wind / temperature / altitude display. Metric is the default. */
 export type UnitsSystem = 'metric' | 'imperial';
 
+// ---- played-shot log -------------------------------------------------------
+
+/** Where the ball finished, relative to the pin. */
+export type FinishTag = 'short' | 'atPin' | 'past';
+
+/** What the ball finished lying in — the situation the observation came from. */
+export type SituationTag = 'green' | 'fringe' | 'fairway' | 'rough' | 'other';
+
+/** Self-reported strike quality. Noisy mid-round — used for strike-rate stats, never for calibration math. */
+export type StrikeTag = 'flush' | 'solid' | 'mishit';
+
+export type PlayedSource = 'course';
+
+/**
+ * Raw post-shot observation. Only what is directly observable on course is
+ * entered: where the ball STOPPED relative to the pin (laser, pacing, or the
+ * next chip/putt length). Carry is derived in analysis — never entered —
+ * because for shots that finish on/near the green, resting shortfall ≈ carry
+ * shortfall (irons land steep and stop).
+ */
+export interface PlayedObservation {
+  /** Resting distance to the pin, yards. 0 = at pin. */
+  restingYd: number;
+  finish: FinishTag;
+  situation: SituationTag;
+  strike: StrikeTag;
+}
+
+/**
+ * One logged attempt: the frozen pre-shot state plus the raw post-shot
+ * observation. The golfer taps "Hitting this" before the shot (freezing the
+ * snapshot) and records the result at their ball (~10 seconds).
+ */
+export interface PlayedShot {
+  id: string;
+  ts: number;
+  shotId: string;
+  /** Club/name copied at log time, so the record survives arsenal edits and deletions. */
+  club: string;
+  shotName: string;
+  source: PlayedSource;
+  /** Conditions + round settings at the moment the shot was marked — the half of the data that must be captured pre-shot. */
+  snapshot: {
+    conditions: Conditions;
+    tempF: number;
+    courseAltFt: number;
+    formPct: number;
+  };
+  /** Model output at shot time. Recomputable, but stored so later model changes can't rewrite history. */
+  predicted: {
+    effectiveCarry: number;
+    diff: number;
+    windPct: number;
+  };
+  /** Null while pending (pre-shot) and for archived pick-only records (a new shot was marked before the result was entered). */
+  observation: PlayedObservation | null;
+}
+
 export interface Settings {
   /** Golf distance units — yards by default; golf is played in yards almost everywhere. */
   units: 'yd' | 'm';
@@ -51,6 +109,8 @@ export interface Settings {
   courseAltFt: number;
   /** Day form, % — how you're striking it today vs. the baseline arsenal numbers. −20..+20. */
   formPct: number;
+  /** Opt-in played-shot logging on the Play screen. Off by default — it must never add steps for golfers who don't want it. */
+  logShots: boolean;
 }
 
 export interface AppState {
@@ -58,4 +118,8 @@ export interface AppState {
   shots: Shot[];
   conditions: Conditions;
   settings: Settings;
+  /** Finished log records (oldest first). */
+  played: PlayedShot[];
+  /** The shot marked "Hitting this" but not yet given a result — at most one at a time. */
+  pendingShot: PlayedShot | null;
 }

@@ -1,10 +1,23 @@
 import { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
 import type { Dispatch, ReactNode } from 'react';
-import type { AppState, Conditions, Settings, Shape, Shot, Trajectory } from '../types';
+import type {
+  AppState,
+  Conditions,
+  FinishTag,
+  PlayedObservation,
+  PlayedShot,
+  Settings,
+  Shape,
+  Shot,
+  SituationTag,
+  StrikeTag,
+  Trajectory,
+} from '../types';
 import { BASELINE_TEMP_F, clamp, finiteOr } from './golf';
 
 const STORAGE_KEY = 'caddie-state-v1';
-export const STATE_VERSION = 1;
+/** 2 — played-shot log (played, pendingShot, settings.logShots). */
+export const STATE_VERSION = 2;
 
 export function newShotId(): string {
   return `s${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`;
@@ -52,7 +65,10 @@ export function freshState(): AppState {
       tempF: BASELINE_TEMP_F,
       courseAltFt: 0,
       formPct: 0,
+      logShots: false,
     },
+    played: [],
+    pendingShot: null,
   };
 }
 
@@ -62,6 +78,10 @@ export type AppAction =
   | { type: 'upsertShot'; shot: Shot }
   | { type: 'deleteShot'; id: string }
   | { type: 'deleteSampleShots' }
+  | { type: 'markHitting'; played: PlayedShot }
+  | { type: 'saveObservation'; observation: PlayedObservation }
+  | { type: 'discardPending' }
+  | { type: 'clearPlayed' }
   | { type: 'replaceAll'; state: AppState };
 
 function reducer(state: AppState, action: AppAction): AppState {
@@ -70,6 +90,26 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, conditions: { ...state.conditions, ...action.patch } };
     case 'setSettings':
       return { ...state, settings: { ...state.settings, ...action.patch } };
+    case 'markHitting':
+      // One pending shot at a time — an unrecorded previous one is kept as a
+      // pick-only record (observation null) rather than silently dropped.
+      return {
+        ...state,
+        played: state.pendingShot ? [...state.played, state.pendingShot] : state.played,
+        pendingShot: action.played,
+      };
+    case 'saveObservation': {
+      if (!state.pendingShot) return state;
+      return {
+        ...state,
+        played: [...state.played, { ...state.pendingShot, observation: action.observation }],
+        pendingShot: null,
+      };
+    }
+    case 'discardPending':
+      return { ...state, pendingShot: null };
+    case 'clearPlayed':
+      return { ...state, played: [] };
     case 'upsertShot': {
       const exists = state.shots.some((s) => s.id === action.shot.id);
       return {
@@ -114,6 +154,59 @@ function normalizeShot(raw: unknown): Shot | null {
   };
 }
 
+const FINISHES: FinishTag[] = ['short', 'atPin', 'past'];
+const SITUATIONS: SituationTag[] = ['green', 'fringe', 'fairway', 'rough', 'other'];
+const STRIKES: StrikeTag[] = ['flush', 'solid', 'mishit'];
+
+/** Coerce any played-shot record (old saves, imported backups) into a valid PlayedShot. */
+function normalizePlayedShot(raw: unknown): PlayedShot | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const p = raw as Record<string, unknown>;
+  const snap = (p.snapshot ?? {}) as Record<string, unknown>;
+  const cond = (snap.conditions ?? {}) as Partial<Conditions>;
+  const pred = (p.predicted ?? {}) as Record<string, unknown>;
+  const obs = (p.observation ?? null) as Record<string, unknown> | null;
+  const club = typeof p.club === 'string' ? p.club.trim() : '';
+  return {
+    id: typeof p.id === 'string' && p.id ? p.id : newShotId(),
+    ts: finiteOr(p.ts, Date.now()),
+    shotId: typeof p.shotId === 'string' ? p.shotId : '',
+    club: club || 'Unknown',
+    shotName: typeof p.shotName === 'string' ? p.shotName.trim() : '',
+    source: 'course',
+    snapshot: {
+      conditions: {
+        // Historical raw data — no UI snapping (unlike live conditions), just
+        // finite fallbacks so analysis never sees NaN.
+        pinDistance: Math.max(0, finiteOr(cond.pinDistance, 0)),
+        windSpeed: clamp(finiteOr(cond.windSpeed, 0), 0, 40),
+        windDir: ((finiteOr(cond.windDir, 0) % 360) + 360) % 360,
+        slopeDeg: finiteOr(cond.slopeDeg, 0),
+        missPref: cond.missPref === 'long' ? 'long' : 'short',
+      },
+      tempF: finiteOr(snap.tempF, BASELINE_TEMP_F),
+      courseAltFt: finiteOr(snap.courseAltFt, 0),
+      formPct: clamp(finiteOr(snap.formPct, 0), -20, 20),
+    },
+    predicted: {
+      effectiveCarry: finiteOr(pred.effectiveCarry, 0),
+      diff: finiteOr(pred.diff, 0),
+      windPct: finiteOr(pred.windPct, 0),
+    },
+    observation:
+      obs && typeof obs === 'object'
+        ? {
+            restingYd: Math.max(0, finiteOr(obs.restingYd, 0)),
+            finish: FINISHES.includes(obs.finish as FinishTag) ? (obs.finish as FinishTag) : 'short',
+            situation: SITUATIONS.includes(obs.situation as SituationTag)
+              ? (obs.situation as SituationTag)
+              : 'other',
+            strike: STRIKES.includes(obs.strike as StrikeTag) ? (obs.strike as StrikeTag) : 'solid',
+          }
+        : null,
+  };
+}
+
 /**
  * Coerce anything (an old localStorage shape, an imported backup, a
  * half-migrated in-memory state) into a fully valid AppState. Every numeric
@@ -152,7 +245,14 @@ export function normalizeState(input: unknown): AppState {
       tempF: tempF === 70 ? BASELINE_TEMP_F : tempF,
       courseAltFt: finiteOr(st.courseAltFt, 0),
       formPct: clamp(finiteOr(st.formPct, 0), -20, 20),
+      // Opt-in feature — anything but an explicit true (older saves, imported
+      // v1 backups) means off.
+      logShots: st.logShots === true,
     },
+    played: Array.isArray(raw.played)
+      ? raw.played.map(normalizePlayedShot).filter((p): p is PlayedShot => p !== null)
+      : [],
+    pendingShot: raw.pendingShot != null ? normalizePlayedShot(raw.pendingShot) : null,
   };
 }
 
