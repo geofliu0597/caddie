@@ -4,6 +4,7 @@ import type { Shape, Shot, Trajectory } from '../types';
 import { newShotId, useApp } from '../lib/store';
 import { SHAPE_LABEL, TRAJECTORY_LABEL, TRAJECTORY_WIND, fmtDist } from '../lib/golf';
 import { DistanceLadder } from './DistanceLadder';
+import { ClubInsights } from './ClubInsights';
 
 const CLUB_ORDER = [
   'Driver',
@@ -295,6 +296,8 @@ export function ArsenalScreen() {
       )}
 
       <DistanceLadder shots={state.shots} units={u} />
+
+      <ClubInsights />
 
       <ul className="space-y-2">
         {sorted.map((s) => (

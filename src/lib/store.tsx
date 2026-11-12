@@ -16,8 +16,8 @@ import type {
 import { BASELINE_TEMP_F, clamp, finiteOr } from './golf';
 
 const STORAGE_KEY = 'caddie-state-v1';
-/** 2 — played-shot log (played, pendingShot, settings.logShots). */
-export const STATE_VERSION = 2;
+/** 2 — played-shot log. 3 — played records also store the log-time stock carry. */
+export const STATE_VERSION = 3;
 
 export function newShotId(): string {
   return `s${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`;
@@ -189,6 +189,7 @@ function normalizePlayedShot(raw: unknown): PlayedShot | null {
       formPct: clamp(finiteOr(snap.formPct, 0), -20, 20),
     },
     predicted: {
+      stockCarry: Math.max(0, finiteOr(pred.stockCarry, 0)),
       effectiveCarry: finiteOr(pred.effectiveCarry, 0),
       diff: finiteOr(pred.diff, 0),
       windPct: finiteOr(pred.windPct, 0),

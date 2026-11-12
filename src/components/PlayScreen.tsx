@@ -113,7 +113,12 @@ export function PlayScreen() {
         courseAltFt: finiteOr(s.courseAltFt, 0),
         formPct: finiteOr(s.formPct, 0),
       },
-      predicted: { effectiveCarry: best.effectiveCarry, diff: best.diff, windPct: best.windPct },
+      predicted: {
+        stockCarry: finiteOr(best.shot.carry, 0),
+        effectiveCarry: best.effectiveCarry,
+        diff: best.diff,
+        windPct: best.windPct,
+      },
       observation: null,
     };
     dispatch({ type: 'markHitting', played });

@@ -91,6 +91,8 @@ export interface PlayedShot {
   };
   /** Model output at shot time. Recomputable, but stored so later model changes can't rewrite history. */
   predicted: {
+    /** Arsenal carry at log time — lets analysis divide the log-time conditions back out even after the arsenal changes. */
+    stockCarry: number;
     effectiveCarry: number;
     diff: number;
     windPct: number;
