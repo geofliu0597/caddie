@@ -16,8 +16,8 @@ import type {
 import { BASELINE_TEMP_F, clamp, finiteOr } from './golf';
 
 const STORAGE_KEY = 'caddie-state-v1';
-/** 2 — played-shot log. 3 — played records also store the log-time stock carry. */
-export const STATE_VERSION = 3;
+/** 2 — played-shot log. 3 — records store the log-time stock carry. 4 — sample shot log + one-time demo injection. */
+export const STATE_VERSION = 4;
 
 export function newShotId(): string {
   return `s${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`;
@@ -54,10 +54,93 @@ function sampleShots(): Shot[] {
   ];
 }
 
+/**
+ * Sample played-shot log — the demo data behind the Numbers check. Every
+ * verdict state the analysis can produce is represented: a short-biased club
+ * with an Apply suggestion, one holding up, a wild/inconsistent one, a
+ * mishit-prone one, and a club with too little data. All records are marked
+ * sample (deleteSampleShots clears them) and all are logged under clean
+ * baseline conditions so the implied-stock math is exact: implied = travel.
+ */
+function samplePlayed(shots: Shot[]): PlayedShot[] {
+  const pick = (club: string, name: string): Shot => {
+    const s = shots.find((x) => x.club === club && x.name === name);
+    if (!s) throw new Error(`sample log: missing shot ${club} ${name}`);
+    return s;
+  };
+  let seq = 0;
+  const mk = (
+    shot: Shot,
+    daysAgo: number,
+    pin: number,
+    finish: FinishTag,
+    restingYd: number,
+    situation: SituationTag,
+    strike: StrikeTag,
+  ): PlayedShot => {
+    seq++;
+    const eff = shot.carry; // clean baseline conditions — every factor is 1
+    return {
+      id: newShotId(),
+      ts: Date.now() - daysAgo * 86400000 - seq * 3600000,
+      shotId: shot.id,
+      club: shot.club,
+      shotName: shot.name,
+      source: 'course',
+      sample: true,
+      snapshot: {
+        conditions: { pinDistance: pin, windSpeed: 0, windDir: 0, slopeDeg: 0, missPref: 'short' },
+        tempF: BASELINE_TEMP_F,
+        courseAltFt: 0,
+        formPct: 0,
+      },
+      predicted: { stockCarry: shot.carry, effectiveCarry: eff, diff: eff - pin, windPct: 0 },
+      observation: { restingYd, finish, situation, strike },
+    };
+  };
+  const sixI = pick('6 Iron', 'Full');
+  const eightI = pick('8 Iron', 'Full');
+  const threeW = pick('3 Wood', 'Full');
+  const flop = pick('Lob Wedge', 'Flop');
+  const punch = pick('7 Iron', 'Punch');
+  return [
+    // 6 Iron — stock 162, green median 155 → "comes up ~7 short" + Apply 155
+    mk(sixI, 20, 162, 'short', 9, 'green', 'solid'),
+    mk(sixI, 16, 160, 'short', 6, 'green', 'solid'),
+    mk(sixI, 13, 161, 'short', 6, 'green', 'flush'),
+    mk(sixI, 9, 163, 'short', 7, 'green', 'solid'),
+    mk(sixI, 6, 162, 'short', 5, 'green', 'solid'),
+    // 8 Iron — stock 142 holds up (+ one fairway result, excluded from carry math)
+    mk(eightI, 19, 142, 'atPin', 0, 'green', 'flush'),
+    mk(eightI, 15, 144, 'short', 4, 'green', 'solid'),
+    mk(eightI, 11, 143, 'short', 1, 'green', 'flush'),
+    mk(eightI, 8, 142, 'past', 1, 'green', 'solid'),
+    mk(eightI, 5, 141, 'short', 1, 'green', 'solid'),
+    mk(eightI, 3, 142, 'short', 6, 'fairway', 'solid'),
+    // 3 Wood — median right on 205, spread wild: inconsistency, not the number
+    mk(threeW, 18, 205, 'short', 20, 'green', 'solid'),
+    mk(threeW, 12, 202, 'short', 6, 'green', 'solid'),
+    mk(threeW, 10, 205, 'atPin', 0, 'green', 'flush'),
+    mk(threeW, 7, 202, 'past', 15, 'green', 'solid'),
+    mk(threeW, 2, 198, 'past', 30, 'green', 'mishit'),
+    // Lob Wedge flop — number fine, mishit-prone
+    mk(flop, 21, 38, 'short', 1, 'green', 'flush'),
+    mk(flop, 14, 38, 'atPin', 0, 'green', 'solid'),
+    mk(flop, 10, 41, 'short', 3, 'green', 'mishit'),
+    mk(flop, 6, 38, 'past', 1, 'green', 'solid'),
+    mk(flop, 3, 40, 'short', 3, 'green', 'mishit'),
+    mk(flop, 1, 37, 'past', 1, 'green', 'mishit'),
+    // 7 Iron punch — too little data for a check
+    mk(punch, 8, 130, 'short', 8, 'green', 'solid'),
+    mk(punch, 4, 132, 'short', 10, 'rough', 'solid'),
+  ];
+}
+
 export function freshState(): AppState {
+  const shots = sampleShots();
   return {
     version: STATE_VERSION,
-    shots: sampleShots(),
+    shots,
     conditions: { pinDistance: 150, windSpeed: 0, windDir: 0, slopeDeg: 0, missPref: 'short' },
     settings: {
       units: 'yd',
@@ -65,9 +148,11 @@ export function freshState(): AppState {
       tempF: BASELINE_TEMP_F,
       courseAltFt: 0,
       formPct: 0,
-      logShots: false,
+      // Demo state ships with logging on so the whole loop is visible on
+      // first run; anyone who doesn't want it flips one toggle.
+      logShots: true,
     },
-    played: [],
+    played: samplePlayed(shots),
     pendingShot: null,
   };
 }
@@ -122,7 +207,13 @@ function reducer(state: AppState, action: AppAction): AppState {
     case 'deleteShot':
       return { ...state, shots: state.shots.filter((s) => s.id !== action.id) };
     case 'deleteSampleShots':
-      return { ...state, shots: state.shots.filter((s) => !s.sample) };
+      // Samples span the arsenal AND the shot log — one button clears both.
+      return {
+        ...state,
+        shots: state.shots.filter((s) => !s.sample),
+        played: state.played.filter((p) => !p.sample),
+        pendingShot: state.pendingShot?.sample ? null : state.pendingShot,
+      };
     case 'replaceAll':
       return normalizeState(action.state);
   }
@@ -205,6 +296,7 @@ function normalizePlayedShot(raw: unknown): PlayedShot | null {
             strike: STRIKES.includes(obs.strike as StrikeTag) ? (obs.strike as StrikeTag) : 'solid',
           }
         : null,
+    sample: p.sample === true,
   };
 }
 
@@ -223,9 +315,22 @@ export function normalizeState(input: unknown): AppState {
   const c = (raw.conditions ?? {}) as Partial<Conditions>;
   const st = (raw.settings ?? {}) as Partial<Settings>;
   const tempF = finiteOr(st.tempF, BASELINE_TEMP_F);
+  const shots = raw.shots.map(normalizeShot).filter((s): s is Shot => s !== null);
+  const playedIn = Array.isArray(raw.played)
+    ? raw.played.map(normalizePlayedShot).filter((p): p is PlayedShot => p !== null)
+    : [];
+  // One-time demo migration: pre-v4 installs that still run the untouched
+  // sample arsenal get the sample shot log injected too, so the Numbers
+  // check demo appears for existing users. Runs once — the save persists as
+  // v4 (and never fires for real arsenals or non-empty logs).
+  const preDemo =
+    finiteOr(raw.version, 0) < 4 &&
+    shots.length > 0 &&
+    shots.every((s) => s.sample === true) &&
+    playedIn.length === 0;
   return {
     version: STATE_VERSION,
-    shots: raw.shots.map(normalizeShot).filter((s): s is Shot => s !== null),
+    shots,
     conditions: {
       pinDistance: clamp(finiteOr(c.pinDistance, base.conditions.pinDistance), 0, 400),
       windSpeed: clamp(finiteOr(c.windSpeed, 0), 0, 40),
@@ -247,12 +352,10 @@ export function normalizeState(input: unknown): AppState {
       courseAltFt: finiteOr(st.courseAltFt, 0),
       formPct: clamp(finiteOr(st.formPct, 0), -20, 20),
       // Opt-in feature — anything but an explicit true (older saves, imported
-      // v1 backups) means off.
-      logShots: st.logShots === true,
+      // v1 backups) means off; the demo migration turns it on.
+      logShots: st.logShots === true || preDemo,
     },
-    played: Array.isArray(raw.played)
-      ? raw.played.map(normalizePlayedShot).filter((p): p is PlayedShot => p !== null)
-      : [],
+    played: preDemo ? samplePlayed(shots) : playedIn,
     pendingShot: raw.pendingShot != null ? normalizePlayedShot(raw.pendingShot) : null,
   };
 }

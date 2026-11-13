@@ -255,7 +255,10 @@ export function ArsenalScreen() {
     return [...state.shots].sort((a, b) => idx(a.club) - idx(b.club) || b.carry - a.carry);
   }, [state.shots]);
 
-  const hasSample = state.shots.some((s) => s.sample);
+  const hasSample =
+    state.shots.some((s) => s.sample) ||
+    state.played.some((p) => p.sample === true) ||
+    state.pendingShot?.sample === true;
 
   return (
     <div className="space-y-4">
@@ -283,7 +286,8 @@ export function ArsenalScreen() {
 
       {hasSample && (
         <div className="rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3 text-sm text-amber-200">
-          These are <b>sample distances</b>, not your real numbers. Edit each shot's carry to match you, or{' '}
+          The arsenal distances and the shot log below are <b>samples</b>, not your real numbers or
+          rounds. Edit each shot's carry to match you, or{' '}
           <button
             type="button"
             className="font-semibold underline"

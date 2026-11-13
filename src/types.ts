@@ -99,6 +99,8 @@ export interface PlayedShot {
   };
   /** Null while pending (pre-shot) and for archived pick-only records (a new shot was marked before the result was entered). */
   observation: PlayedObservation | null;
+  /** Marks records that came from the built-in sample log (demo data). */
+  sample?: boolean;
 }
 
 export interface Settings {

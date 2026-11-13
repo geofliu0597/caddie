@@ -331,6 +331,7 @@ export function SettingsScreen() {
                         </div>
                         <div className="text-xs text-turf-300">
                           {fmtWhen(p.ts)} · covered {playedCovered(p)}
+                          {p.sample && ' · sample'}
                         </div>
                       </div>
                       <span
