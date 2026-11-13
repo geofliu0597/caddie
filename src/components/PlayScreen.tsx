@@ -44,19 +44,20 @@ function SectionTitle({ children }: { children: ReactNode }) {
   return <h2 className="text-xs font-semibold uppercase tracking-wider text-turf-300">{children}</h2>;
 }
 
-function DiffBadge({ diff, u }: { diff: number; u: 'yd' | 'm' }) {
+function DiffBadge({ diff, u, compact = false }: { diff: number; u: 'yd' | 'm'; compact?: boolean }) {
   const r = Math.round(toDisplayYards(diff, u));
   const abs = Math.abs(r);
-  const tone =
-    abs <= 8
-      ? 'bg-lime-400/15 text-lime-300'
-      : abs <= 15
-        ? 'bg-amber-400/15 text-amber-300'
-        : 'bg-red-400/15 text-red-300';
+  const tone = abs <= 8 ? 'text-lime-300' : abs <= 15 ? 'text-amber-300' : 'text-red-300';
+  const label = `${r > 0 ? '+' : ''}${r} ${u}`;
+  if (compact) {
+    // Tiles: bare colored text — the pill's padding doesn't fit a ~92px slot
+    // beside the yardage, and the tone alone still reads good/close/off.
+    return <span className={`shrink-0 text-sm font-semibold tabular-nums ${tone}`}>{label}</span>;
+  }
+  const bg = abs <= 8 ? 'bg-lime-400/15' : abs <= 15 ? 'bg-amber-400/15' : 'bg-red-400/15';
   return (
-    <span className={`rounded-full px-2.5 py-1 text-sm font-semibold tabular-nums ${tone}`}>
-      {r > 0 ? '+' : ''}
-      {r} {u}
+    <span className={`rounded-full px-2.5 py-1 text-sm font-semibold tabular-nums ${bg} ${tone}`}>
+      {label}
     </span>
   );
 }
@@ -305,7 +306,7 @@ export function PlayScreen() {
                           <span className="text-xs text-turf-300 tabular-nums">
                             {fmtDist(r.effectiveCarry, u)}
                           </span>
-                          <DiffBadge diff={r.diff} u={u} />
+                          <DiffBadge diff={r.diff} u={u} compact />
                         </div>
                       </button>
                     </li>

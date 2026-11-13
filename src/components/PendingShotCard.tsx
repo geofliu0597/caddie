@@ -88,8 +88,11 @@ export function PendingShotCard() {
             <span className="block text-xs font-semibold uppercase tracking-wider text-amber-300">
               Record result
             </span>
-            <span className="block truncate text-sm text-turf-100">
-              {clubLine} — at {covered}, flies ~{flies}
+            {/* Club identity on its own line, numbers on the next — truncating
+                the single line cut off the distances, the part that matters. */}
+            <span className="block truncate text-sm font-medium text-turf-50">{clubLine}</span>
+            <span className="block text-sm tabular-nums text-turf-200">
+              at {covered}, flies ~{flies}
             </span>
           </span>
           <svg
