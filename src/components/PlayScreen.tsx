@@ -8,6 +8,7 @@ import {
   TRAJECTORY_LABEL,
   WIND_UNIT,
   clamp,
+  clubAbbr,
   crossAimYards,
   finiteOr,
   fmtDist,
@@ -20,6 +21,7 @@ import {
   windLabel,
   windToDisplay,
 } from '../lib/golf';
+import type { ShotEstimate } from '../lib/golf';
 import { WindControl } from './WindControl';
 import { SlopeControl } from './SlopeControl';
 import { InfoTip } from './InfoTip';
@@ -76,6 +78,9 @@ export function PlayScreen() {
 
   const ranked = rankShots(state.shots, c, s);
   const best = ranked[0];
+  // The best-match card is selectable like the tiles below — marked while its
+  // record is the pending one.
+  const bestMarked = best != null && state.pendingShot?.shotId === best.shot.id;
   const { crossRight } = windComponents(c);
 
   const slopeDeg = finiteOr(c.slopeDeg, 0);
@@ -98,26 +103,29 @@ export function PlayScreen() {
 
   // Played-shot log (opt-in in Settings): one tap freezes the conditions and
   // the prediction as the pending record; the result is entered at the ball.
-  const markHitting = () => {
-    if (!best) return;
+  // Works for ANY ranked shot, not just the best match — the golfer can
+  // override the caddie and still log what they actually chose.
+  const markPlaying = (r: ShotEstimate) => {
     const played: PlayedShot = {
       id: newShotId(),
       ts: Date.now(),
-      shotId: best.shot.id,
-      club: best.shot.club,
-      shotName: best.shot.name,
+      shotId: r.shot.id,
+      club: r.shot.club,
+      shotName: r.shot.name,
       source: 'course',
       snapshot: {
         conditions: { ...c },
         tempF: finiteOr(s.tempF, BASELINE_TEMP_F),
         courseAltFt: finiteOr(s.courseAltFt, 0),
         formPct: finiteOr(s.formPct, 0),
+        trajectory: r.shot.trajectory,
+        greenFirmness: s.greenFirmness,
       },
       predicted: {
-        stockCarry: finiteOr(best.shot.carry, 0),
-        effectiveCarry: best.effectiveCarry,
-        diff: best.diff,
-        windPct: best.windPct,
+        stockCarry: finiteOr(r.shot.carry, 0),
+        effectiveCarry: r.effectiveCarry,
+        diff: r.diff,
+        windPct: r.windPct,
       },
       observation: null,
     };
@@ -137,7 +145,7 @@ export function PlayScreen() {
   // The open sheet fills the space between the bottom of the Best match card
   // and the screen edge (minus this handle), so the full card stays visible;
   // the cards inside scroll when there are more than fit.
-  const bestRef = useRef<HTMLElement | null>(null);
+  const bestRef = useRef<HTMLButtonElement | null>(null);
   const handleRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [sheetMax, setSheetMax] = useState<number | null>(null);
@@ -209,23 +217,39 @@ export function PlayScreen() {
             </p>
           )}
 
-          {state.pendingShot && s.logShots && <PendingShotCard />}
+          {s.logShots && state.shots.length > 0 && (
+            <p className="text-xs text-turf-400">
+              Tap a club to mark it as the one you're hitting; tap it again to unmark.
+            </p>
+          )}
 
           {best && (
-            <article ref={bestRef} className="rounded-2xl border-2 border-lime-400/60 bg-turf-700 p-4">
-              <div className="flex items-center justify-between">
-                <span className="rounded-full bg-lime-400 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-turf-950">
-                  Best match
-                </span>
+            <button
+              ref={bestRef}
+              type="button"
+              disabled={!s.logShots}
+              onClick={() => (bestMarked ? dispatch({ type: 'discardPending' }) : markPlaying(best))}
+              aria-pressed={bestMarked}
+              title={s.logShots ? "Mark this club as the one you're hitting" : undefined}
+              className={`relative w-full rounded-2xl border-2 bg-turf-700 p-4 text-left ${
+                s.logShots ? 'active:bg-turf-600' : ''
+              } ${bestMarked ? 'border-lime-400/60' : 'border-lime-400/30'}`}
+            >
+              {/* Tab chip straddling the top border; the club name sits at the top edge, in line with the diff badge. */}
+              <span className="absolute -top-2.5 left-4 rounded-full bg-lime-400 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-turf-950">
+                Best match
+              </span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 truncate text-2xl font-semibold text-turf-200">
+                  <span className="text-turf-50">{best.shot.club}</span>{' '}
+                  <span className="font-normal">· {best.shot.name}</span>
+                </div>
                 <DiffBadge diff={best.diff} u={u} />
               </div>
-              <h3 className="mt-2 text-2xl font-semibold">
-                {best.shot.club} <span className="font-normal text-turf-200">· {best.shot.name}</span>
-              </h3>
-              <p className="mt-1 text-turf-100">
+              <div className="mt-1 text-turf-100">
                 Flies <span className="font-semibold">{fmtDist(best.effectiveCarry, u)}</span>
                 <span className="text-turf-300"> (stock {fmtDist(best.shot.carry, u)})</span>
-              </p>
+              </div>
               <div className="mt-2 flex flex-wrap gap-2 text-xs">
                 <span className="rounded-full bg-turf-600 px-2 py-0.5 text-turf-100">
                   {TRAJECTORY_LABEL[best.shot.trajectory]} trajectory
@@ -246,39 +270,65 @@ export function PlayScreen() {
                   </span>
                 )}
               </div>
-              {best.shot.notes && <p className="mt-2 text-sm italic text-turf-200">{best.shot.notes}</p>}
-              {s.logShots && (
-                <button
-                  type="button"
-                  onClick={markHitting}
-                  className="mt-3 h-11 w-full rounded-xl bg-lime-400 text-sm font-bold uppercase tracking-wider text-turf-950 active:bg-lime-300"
-                >
-                  Hitting this
-                </button>
-              )}
-            </article>
+              {best.shot.notes && <div className="mt-2 text-sm italic text-turf-200">{best.shot.notes}</div>}
+            </button>
           )}
 
           {ranked.length > 1 && (
-            <ul className="space-y-2">
-              {ranked.slice(1, 6).map((r) => (
-                <li key={r.shot.id} className="flex items-center justify-between rounded-xl bg-turf-800 px-4 py-3">
-                  <div>
-                    <div className="font-medium">
-                      {r.shot.club} <span className="text-turf-300">· {r.shot.name}</span>
-                    </div>
-                    <div className="text-xs text-turf-300">Flies {fmtDist(r.effectiveCarry, u)}</div>
-                  </div>
-                  <DiffBadge diff={r.diff} u={u} />
-                </li>
-              ))}
-            </ul>
+            <div>
+              <ul className="grid grid-cols-3 gap-2">
+                {ranked.slice(1, 4).map((r) => {
+                  const marked = state.pendingShot?.shotId === r.shot.id;
+                  return (
+                    <li key={r.shot.id}>
+                      <button
+                        type="button"
+                        disabled={!s.logShots}
+                        onClick={() => (marked ? dispatch({ type: 'discardPending' }) : markPlaying(r))}
+                        title={s.logShots ? 'Log this shot instead of the best match' : undefined}
+                        className={`w-full rounded-xl px-2 py-2.5 text-left ${
+                          s.logShots ? 'active:bg-turf-600' : ''
+                        } ${
+                          marked
+                            ? 'bg-turf-700 ring-2 ring-inset ring-lime-400/60'
+                            : 'bg-turf-800'
+                        }`}
+                      >
+                        {/* Compact tiles: club abbreviated (name only when it's not the
+                            default "Full"), yardage below, diff badge right. Muted base so
+                            the truncate ellipsis matches the shot name's color. */}
+                        <div className="truncate text-sm font-medium text-turf-300">
+                          <span className="text-turf-50">{clubAbbr(r.shot.club)}</span>
+                          {r.shot.name && r.shot.name !== 'Full' && <> · {r.shot.name}</>}
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-1">
+                          <span className="text-xs text-turf-300 tabular-nums">
+                            {fmtDist(r.effectiveCarry, u)}
+                          </span>
+                          <DiffBadge diff={r.diff} u={u} />
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           )}
+
+          {/* Below the suggestions so marking/unmarking never shifts them. */}
+          {state.pendingShot && s.logShots && <PendingShotCard />}
         </section>
       </div>
 
+      {/* While the dock is open, a tap anywhere else closes it instead of
+          hitting the page. Transparent (no scrim); sits above the sticky
+          header (z-40), below the dock (z-50). */}
+      {open && (
+        <div className="fixed inset-0 z-[45] touch-none" onClick={() => setOpen(false)} aria-hidden />
+      )}
+
       {/* Distance & wind dock — drag up to open, drag down / tap to tuck away */}
-      <div className="fixed inset-x-0 bottom-0 z-40">
+      <div className="fixed inset-x-0 bottom-0 z-50">
         <div className="mx-auto w-full max-w-md">
           <div
             className={`rounded-t-3xl border-x border-t border-turf-700 bg-turf-900/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_30px_rgba(0,0,0,0.5)] backdrop-blur ${

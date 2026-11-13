@@ -70,6 +70,27 @@ export function finiteOr(v: unknown, fallback: number): number {
 export const TRAJECTORY_LABEL: Record<Trajectory, string> = { low: 'Low', mid: 'Mid', high: 'High' };
 export const SHAPE_LABEL: Record<Shot['shape'], string> = { straight: 'Straight', draw: 'Draw', fade: 'Fade' };
 
+/**
+ * Standard golf club abbreviation for tight spots — Driver → Dr, 3 Wood → 3w,
+ * 7 Iron → 7i, 4 Hybrid → 4h, Pitching Wedge → Pw. Numbered clubs abbreviate
+ * generically from the club type's first letter; named wedges map directly.
+ * Unknown names come back unchanged (callers truncate).
+ */
+export function clubAbbr(club: string): string {
+  const c = club.trim();
+  const numbered = c.match(/^(\d+)\s+(wood|hybrid|iron|wedge)$/i);
+  if (numbered) return `${numbered[1]}${numbered[2][0].toLowerCase()}`;
+  const named: Record<string, string> = {
+    driver: 'Dr',
+    'pitching wedge': 'Pw',
+    'gap wedge': 'Gw',
+    'sand wedge': 'Sw',
+    'lob wedge': 'Lw',
+    putter: 'Pt',
+  };
+  return named[c.toLowerCase()] ?? c;
+}
+
 // ---- units (internal distances are always yards) ---------------------------
 
 export const YARDS_PER_METER = 1.09361;
