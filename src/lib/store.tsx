@@ -4,7 +4,6 @@ import type {
   AppState,
   Conditions,
   FinishTag,
-  GreenFirmness,
   PlayedObservation,
   PlayedShot,
   Settings,
@@ -161,6 +160,7 @@ export function freshState(): AppState {
       // Demo state ships with logging on so the whole loop is visible on
       // first run; anyone who doesn't want it flips one toggle.
       logShots: true,
+      greenFirmness: 'normal',
     },
     played: samplePlayed(shots),
     pendingShot: null,
