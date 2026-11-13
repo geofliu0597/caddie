@@ -2,10 +2,17 @@ import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Shape, Shot, Trajectory } from '../types';
 import { newShotId, useApp } from '../lib/store';
-import { SHAPE_LABEL, TRAJECTORY_LABEL, TRAJECTORY_WIND, fmtDist } from '../lib/golf';
+import { SHAPE_LABEL, TRAJECTORY_LABEL, TRAJECTORY_WIND, fmtDist, toDisplayYards } from '../lib/golf';
+import { computeClubInsights } from '../lib/insights';
 import { DistanceLadder } from './DistanceLadder';
 import { ClubInsights } from './ClubInsights';
 
+// Suggestion list in the shot editor AND the arsenal's organization order.
+// 10 Iron sits above Pitching Wedge (same club, different name). The degree
+// wedges live below the named wedges: golfers who call wedges by degrees
+// don't also carry named ones (54° = Sand Wedge), so a degree-only bag still
+// organizes long-to-short, and mixed bags keep the named wedges' order
+// intact.
 const CLUB_ORDER = [
   'Driver',
   '3 Wood',
@@ -20,10 +27,18 @@ const CLUB_ORDER = [
   '7 Iron',
   '8 Iron',
   '9 Iron',
+  '10 Iron',
   'Pitching Wedge',
   'Gap Wedge',
   'Sand Wedge',
   'Lob Wedge',
+  '48°',
+  '50°',
+  '52°',
+  '54°',
+  '56°',
+  '58°',
+  '60°',
   'Putter',
 ];
 
@@ -255,6 +270,13 @@ export function ArsenalScreen() {
     return [...state.shots].sort((a, b) => idx(a.club) - idx(b.club) || b.carry - a.carry);
   }, [state.shots]);
 
+  // Strike traits from the played-shot log, shown as chips on each shot's
+  // row — standing information where club decisions happen, not tasks.
+  const traitsByShot = useMemo(() => {
+    const { insights } = computeClubInsights(state.played, state.shots);
+    return new Map(insights.map((i) => [i.shotId, i]));
+  }, [state.played, state.shots]);
+
   const hasSample =
     state.shots.some((s) => s.sample) ||
     state.played.some((p) => p.sample === true) ||
@@ -304,7 +326,9 @@ export function ArsenalScreen() {
       <ClubInsights />
 
       <ul className="space-y-2">
-        {sorted.map((s) => (
+        {sorted.map((s) => {
+          const trait = traitsByShot.get(s.id);
+          return (
           <li key={s.id}>
             <button
               type="button"
@@ -325,12 +349,29 @@ export function ArsenalScreen() {
                 {s.shape !== 'straight' && (
                   <span className="rounded-full bg-turf-600 px-2 py-0.5">{SHAPE_LABEL[s.shape]}</span>
                 )}
+                {trait && !trait.deleted && trait.wild && (
+                  <span
+                    className="rounded-full bg-amber-400/15 px-2 py-0.5 tabular-nums text-amber-300"
+                    title="Wide shot-to-shot spread in your logged results"
+                  >
+                    ±{Math.round(toDisplayYards(trait.iqr / 2, u))} {u}
+                  </span>
+                )}
+                {trait && trait.mishitProne && (
+                  <span
+                    className="rounded-full bg-amber-400/15 px-2 py-0.5 text-amber-300"
+                    title="A third or more of your logged results were mishits"
+                  >
+                    mishit-prone
+                  </span>
+                )}
                 {s.total != null && <span>total {fmtDist(s.total, u)}</span>}
                 {s.notes && <span className="italic">{s.notes}</span>}
               </div>
             </button>
           </li>
-        ))}
+          );
+        })}
       </ul>
 
       {editing && (
