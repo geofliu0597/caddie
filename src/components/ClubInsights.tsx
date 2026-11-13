@@ -20,6 +20,13 @@ export function ClubInsights() {
 
   const { insights, excludedFairway } = computeClubInsights(state.played, state.shots);
   const eligible = insights.filter((i) => i.nGreen >= MIN_GREEN_FOR_INSIGHT);
+  // The check holds only resolvable items: a stock discrepancy (Apply
+  // resolves it) or too little data (more logs resolve it). Confirmed clubs
+  // collapse into a one-line summary, and strike traits (wild spread,
+  // mishit rate) live as chips on the club's arsenal row — standing
+  // information, not tasks that would otherwise sit here forever.
+  const attention = eligible.filter((i) => i.attention);
+  const confirmed = eligible.filter((i) => !i.attention);
   const thin = insights.filter((i) => i.nGreen < MIN_GREEN_FOR_INSIGHT);
 
   const apply = (i: ClubInsight) => {
@@ -39,23 +46,29 @@ export function ClubInsights() {
             to the arsenal number. Medians shrug off mishits.
           </p>
           <p className="mt-1">
-            Only results that finish on or near the green count: rollout makes fairway landings
-            poor carry evidence. Nothing changes until you tap Apply.
+            Only results that finish on or near the green count: the release (rollout) after
+            landing is estimated from the shot's trajectory and the round's green firmness and
+            subtracted, so resting results measure carry — not carry plus rollout. Fairway
+            landings roll over unknown turf and stay excluded. Nothing changes until you tap Apply.
+          </p>
+          <p className="mt-1">
+            Clubs that hold up collapse into one line. Strike traits — wide spread, mishit rate —
+            show as chips on the club's row below: standing information, not tasks.
           </p>
         </InfoTip>
       </div>
 
       {insights.length === 0 && (
         <p className="mt-2 text-xs text-turf-400">
-          Not enough logged results yet. Mark “Hitting this” before a shot on the Play tab and
+          Not enough logged results yet. Tap a suggested club on the Play tab before a shot and
           record where the ball finished — a club shows up here once {MIN_GREEN_FOR_INSIGHT} of its
           results land on or near the green.
         </p>
       )}
 
-      {eligible.length > 0 && (
+      {attention.length > 0 && (
         <ul className="mt-3 space-y-2">
-          {eligible.map((i) => {
+          {attention.map((i) => {
             const stockD = `${disp(i.stock)} ${u}`;
             const shortYd = Math.abs(disp(i.biasYd));
             const earlyTag = i.early ? ' (early signal)' : '';
@@ -119,6 +132,20 @@ export function ClubInsights() {
             );
           })}
         </ul>
+      )}
+
+      {confirmed.length > 0 && (
+        <p className="mt-2 text-xs text-turf-400">
+          <span className="font-semibold text-lime-300">
+            ✓ {confirmed.length} club{confirmed.length === 1 ? '' : 's'} check
+            {confirmed.length === 1 ? 's' : ''} out
+          </span>
+          {' — '}
+          {confirmed
+            .map((i) => (i.shotName && i.shotName !== 'Full' ? `${i.club} · ${i.shotName}` : i.club))
+            .join(', ')}
+          .
+        </p>
       )}
 
       {thin.length > 0 && (

@@ -212,8 +212,9 @@ export function SettingsScreen() {
           <SectionTitle>Round conditions</SectionTitle>
           <InfoTip>
             <p>
-              Set once when you arrive — these change how far your shots fly, not the number you
-              cover.
+              Set once when you arrive. Temperature and altitude change how far your shots fly;
+              green firmness is how much they release after landing — it feeds the Numbers check,
+              not the live club suggestions.
             </p>
             <p className="mt-1">
               The stance slope under your feet is entered per shot on the Play tab.
@@ -260,6 +261,32 @@ export function SettingsScreen() {
           }
           onSelect={(v) => setS({ courseAltFt: v })}
         />
+        <div className="mt-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm font-medium text-turf-100">Green firmness</span>
+            <InfoTip>
+              <p>
+                How much balls release after landing on greens. The Numbers check uses it to split
+                your logged resting results into carry and rollout before comparing them to your
+                arsenal.
+              </p>
+            </InfoTip>
+          </div>
+          <div className="mt-2 flex rounded-xl bg-turf-700 p-1">
+            {(['soft', 'normal', 'firm'] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setS({ greenFirmness: f })}
+                className={`h-10 flex-1 rounded-lg text-sm font-semibold ${
+                  s.greenFirmness === f ? 'bg-lime-400 text-turf-950' : 'text-turf-200'
+                }`}
+              >
+                {f === 'soft' ? 'Soft' : f === 'normal' ? 'Normal' : 'Firm'}
+              </button>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* Shot logging */}
@@ -291,12 +318,12 @@ export function SettingsScreen() {
           ))}
         </div>
         <p className="mt-2 text-xs text-turf-400">
-          Off by default. On adds one tap before a shot (“Hitting this” on the Play tab) and a quick
-          result entry after — the resting distance to the pin plus lie and strike tags.
+          Off by default. On adds one tap before a shot (tap the suggested club on the Play tab) and
+          a quick result entry after — the resting distance to the pin plus lie and strike tags.
         </p>
         {s.logShots && played.length === 0 && (
           <p className="mt-2 text-xs text-turf-400">
-            Tap “Hitting this” on the Play tab before your next shot to start the log.
+            Tap a suggested club on the Play tab before your next shot to start the log.
           </p>
         )}
         {played.length > 0 && (

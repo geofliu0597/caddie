@@ -4,6 +4,7 @@ import type {
   AppState,
   Conditions,
   FinishTag,
+  GreenFirmness,
   PlayedObservation,
   PlayedShot,
   Settings,
@@ -16,8 +17,8 @@ import type {
 import { BASELINE_TEMP_F, clamp, finiteOr } from './golf';
 
 const STORAGE_KEY = 'caddie-state-v1';
-/** 2 — played-shot log. 3 — records store the log-time stock carry. 4 — sample shot log + one-time demo injection. */
-export const STATE_VERSION = 4;
+/** 2 — played-shot log. 3 — records store the log-time stock carry. 4 — sample shot log + one-time demo injection. 5 — snapshots freeze trajectory + green firmness (release-adjusted analysis); sample log rebuilt for it. */
+export const STATE_VERSION = 5;
 
 export function newShotId(): string {
   return `s${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`;
@@ -60,7 +61,9 @@ function sampleShots(): Shot[] {
  * with an Apply suggestion, one holding up, a wild/inconsistent one, a
  * mishit-prone one, and a club with too little data. All records are marked
  * sample (deleteSampleShots clears them) and all are logged under clean
- * baseline conditions so the implied-stock math is exact: implied = travel.
+ * baseline conditions (normal-firm greens), so the release-adjusted math is
+ * exact: implied stock = travel − release, release = share × carry by
+ * trajectory (mid 6% · high 3% · low 10% of the shot's carry).
  */
 function samplePlayed(shots: Shot[]): PlayedShot[] {
   const pick = (club: string, name: string): Shot => {
@@ -93,45 +96,52 @@ function samplePlayed(shots: Shot[]): PlayedShot[] {
         tempF: BASELINE_TEMP_F,
         courseAltFt: 0,
         formPct: 0,
+        trajectory: shot.trajectory,
+        greenFirmness: 'normal',
       },
       predicted: { stockCarry: shot.carry, effectiveCarry: eff, diff: eff - pin, windPct: 0 },
       observation: { restingYd, finish, situation, strike },
     };
   };
+  // Release per club: 6i/8i/3W (mid) 9.72/8.52/12.3 · flop (high) 1.14 ·
+  // punch (low) 13.2. Resting = carry + release for every record.
   const sixI = pick('6 Iron', 'Full');
   const eightI = pick('8 Iron', 'Full');
   const threeW = pick('3 Wood', 'Full');
   const flop = pick('Lob Wedge', 'Flop');
   const punch = pick('7 Iron', 'Punch');
   return [
-    // 6 Iron — stock 162, green median 155 → "comes up ~7 short" + Apply 155
-    mk(sixI, 20, 162, 'short', 9, 'green', 'solid'),
-    mk(sixI, 16, 160, 'short', 6, 'green', 'solid'),
-    mk(sixI, 13, 161, 'short', 6, 'green', 'flush'),
-    mk(sixI, 9, 163, 'short', 7, 'green', 'solid'),
-    mk(sixI, 6, 162, 'short', 5, 'green', 'solid'),
-    // 8 Iron — stock 142 holds up (+ one fairway result, excluded from carry math)
-    mk(eightI, 19, 142, 'atPin', 0, 'green', 'flush'),
-    mk(eightI, 15, 144, 'short', 4, 'green', 'solid'),
-    mk(eightI, 11, 143, 'short', 1, 'green', 'flush'),
-    mk(eightI, 8, 142, 'past', 1, 'green', 'solid'),
-    mk(eightI, 5, 141, 'short', 1, 'green', 'solid'),
-    mk(eightI, 3, 142, 'short', 6, 'fairway', 'solid'),
+    // 6 Iron — stock 162, release-adjusted median 155 → "comes up ~7 short"
+    // + Apply 155. Balls carry ~7 short of stock and release ~10 to finish
+    // at or just past the pin.
+    mk(sixI, 20, 161, 'past', 4, 'green', 'solid'),
+    mk(sixI, 16, 163, 'past', 2, 'green', 'solid'),
+    mk(sixI, 13, 162, 'past', 3, 'green', 'flush'),
+    mk(sixI, 9, 164, 'atPin', 0, 'green', 'solid'),
+    mk(sixI, 6, 163, 'short', 1, 'green', 'solid'),
+    // 8 Iron — stock 142 holds up: a true 142 carry releases ~8.5 to the
+    // 149–151 pins. (+ one fairway result, excluded from the carry math)
+    mk(eightI, 19, 150, 'atPin', 0, 'green', 'flush'),
+    mk(eightI, 15, 151, 'past', 1, 'green', 'solid'),
+    mk(eightI, 11, 150, 'short', 1, 'green', 'solid'),
+    mk(eightI, 8, 150, 'atPin', 0, 'green', 'flush'),
+    mk(eightI, 5, 149, 'past', 2, 'green', 'solid'),
+    mk(eightI, 3, 148, 'short', 6, 'fairway', 'solid'),
     // 3 Wood — median right on 205, spread wild: inconsistency, not the number
-    mk(threeW, 18, 205, 'short', 20, 'green', 'solid'),
-    mk(threeW, 12, 202, 'short', 6, 'green', 'solid'),
-    mk(threeW, 10, 205, 'atPin', 0, 'green', 'flush'),
-    mk(threeW, 7, 202, 'past', 15, 'green', 'solid'),
-    mk(threeW, 2, 198, 'past', 30, 'green', 'mishit'),
-    // Lob Wedge flop — number fine, mishit-prone
-    mk(flop, 21, 38, 'short', 1, 'green', 'flush'),
-    mk(flop, 14, 38, 'atPin', 0, 'green', 'solid'),
-    mk(flop, 10, 41, 'short', 3, 'green', 'mishit'),
-    mk(flop, 6, 38, 'past', 1, 'green', 'solid'),
-    mk(flop, 3, 40, 'short', 3, 'green', 'mishit'),
-    mk(flop, 1, 37, 'past', 1, 'green', 'mishit'),
+    mk(threeW, 18, 205, 'short', 8, 'green', 'solid'),
+    mk(threeW, 12, 208, 'atPin', 0, 'green', 'solid'),
+    mk(threeW, 10, 205, 'past', 12, 'green', 'flush'),
+    mk(threeW, 7, 205, 'past', 24, 'green', 'solid'),
+    mk(threeW, 2, 210, 'past', 30, 'green', 'mishit'),
+    // Lob Wedge flop — number fine, mishit-prone (high trajectory barely releases)
+    mk(flop, 21, 38, 'short', 2, 'green', 'flush'),
+    mk(flop, 14, 39, 'short', 3, 'green', 'solid'),
+    mk(flop, 10, 38, 'atPin', 0, 'green', 'mishit'),
+    mk(flop, 6, 41, 'short', 2, 'green', 'solid'),
+    mk(flop, 3, 39, 'atPin', 0, 'green', 'mishit'),
+    mk(flop, 1, 40, 'atPin', 0, 'green', 'mishit'),
     // 7 Iron punch — too little data for a check
-    mk(punch, 8, 130, 'short', 8, 'green', 'solid'),
+    mk(punch, 8, 135, 'past', 2, 'green', 'solid'),
     mk(punch, 4, 132, 'short', 10, 'rough', 'solid'),
   ];
 }
@@ -246,11 +256,11 @@ function normalizeShot(raw: unknown): Shot | null {
 }
 
 const FINISHES: FinishTag[] = ['short', 'atPin', 'past'];
-const SITUATIONS: SituationTag[] = ['green', 'fringe', 'fairway', 'rough', 'other'];
+const SITUATIONS: SituationTag[] = ['green', 'fairway', 'rough', 'other'];
 const STRIKES: StrikeTag[] = ['flush', 'solid', 'mishit'];
 
 /** Coerce any played-shot record (old saves, imported backups) into a valid PlayedShot. */
-function normalizePlayedShot(raw: unknown): PlayedShot | null {
+function normalizePlayedShot(raw: unknown, trajAtLog?: Map<string, Trajectory>): PlayedShot | null {
   if (!raw || typeof raw !== 'object') return null;
   const p = raw as Record<string, unknown>;
   const snap = (p.snapshot ?? {}) as Record<string, unknown>;
@@ -258,10 +268,11 @@ function normalizePlayedShot(raw: unknown): PlayedShot | null {
   const pred = (p.predicted ?? {}) as Record<string, unknown>;
   const obs = (p.observation ?? null) as Record<string, unknown> | null;
   const club = typeof p.club === 'string' ? p.club.trim() : '';
+  const shotId = typeof p.shotId === 'string' ? p.shotId : '';
   return {
     id: typeof p.id === 'string' && p.id ? p.id : newShotId(),
     ts: finiteOr(p.ts, Date.now()),
-    shotId: typeof p.shotId === 'string' ? p.shotId : '',
+    shotId,
     club: club || 'Unknown',
     shotName: typeof p.shotName === 'string' ? p.shotName.trim() : '',
     source: 'course',
@@ -278,6 +289,13 @@ function normalizePlayedShot(raw: unknown): PlayedShot | null {
       tempF: finiteOr(snap.tempF, BASELINE_TEMP_F),
       courseAltFt: finiteOr(snap.courseAltFt, 0),
       formPct: clamp(finiteOr(snap.formPct, 0), -20, 20),
+      // Pre-v5 snapshots don't store the log-time trajectory or green
+      // firmness — fall back to the live shot's trajectory, else 'mid'.
+      trajectory: TRAJECTORIES.includes(snap.trajectory as Trajectory)
+        ? (snap.trajectory as Trajectory)
+        : (trajAtLog?.get(shotId) ?? 'mid'),
+      greenFirmness:
+        snap.greenFirmness === 'soft' || snap.greenFirmness === 'firm' ? snap.greenFirmness : 'normal',
     },
     predicted: {
       stockCarry: Math.max(0, finiteOr(pred.stockCarry, 0)),
@@ -290,9 +308,14 @@ function normalizePlayedShot(raw: unknown): PlayedShot | null {
         ? {
             restingYd: Math.max(0, finiteOr(obs.restingYd, 0)),
             finish: FINISHES.includes(obs.finish as FinishTag) ? (obs.finish as FinishTag) : 'short',
-            situation: SITUATIONS.includes(obs.situation as SituationTag)
-              ? (obs.situation as SituationTag)
-              : 'other',
+            // Legacy saves may carry 'fringe' — merged into 'green' (the
+            // analysis always treated them identically).
+            situation:
+              obs.situation === 'fringe'
+                ? 'green'
+                : SITUATIONS.includes(obs.situation as SituationTag)
+                  ? (obs.situation as SituationTag)
+                  : 'other',
             strike: STRIKES.includes(obs.strike as StrikeTag) ? (obs.strike as StrikeTag) : 'solid',
           }
         : null,
@@ -316,18 +339,24 @@ export function normalizeState(input: unknown): AppState {
   const st = (raw.settings ?? {}) as Partial<Settings>;
   const tempF = finiteOr(st.tempF, BASELINE_TEMP_F);
   const shots = raw.shots.map(normalizeShot).filter((s): s is Shot => s !== null);
+  // Log-time trajectory fallback for pre-v5 records (see normalizePlayedShot).
+  const trajAtLog = new Map(shots.map((s) => [s.id, s.trajectory]));
   const playedIn = Array.isArray(raw.played)
-    ? raw.played.map(normalizePlayedShot).filter((p): p is PlayedShot => p !== null)
+    ? raw.played
+        .map((p) => normalizePlayedShot(p, trajAtLog))
+        .filter((p): p is PlayedShot => p !== null)
     : [];
-  // One-time demo migration: pre-v4 installs that still run the untouched
-  // sample arsenal get the sample shot log injected too, so the Numbers
-  // check demo appears for existing users. Runs once — the save persists as
-  // v4 (and never fires for real arsenals or non-empty logs).
+  // One-time demo migration: pre-v5 installs that still run the untouched
+  // sample arsenal get the sample shot log (re)injected, so the demo always
+  // matches the current analysis — records from older versions predate the
+  // release-adjusted math. Runs once — the save persists as v5 (and never
+  // fires for real arsenals or real logs: every shot and record on file
+  // must be sample).
   const preDemo =
-    finiteOr(raw.version, 0) < 4 &&
+    finiteOr(raw.version, 0) < 5 &&
     shots.length > 0 &&
     shots.every((s) => s.sample === true) &&
-    playedIn.length === 0;
+    playedIn.every((p) => p.sample === true);
   return {
     version: STATE_VERSION,
     shots,
@@ -354,9 +383,11 @@ export function normalizeState(input: unknown): AppState {
       // Opt-in feature — anything but an explicit true (older saves, imported
       // v1 backups) means off; the demo migration turns it on.
       logShots: st.logShots === true || preDemo,
+      greenFirmness:
+        st.greenFirmness === 'soft' || st.greenFirmness === 'firm' ? st.greenFirmness : 'normal',
     },
     played: preDemo ? samplePlayed(shots) : playedIn,
-    pendingShot: raw.pendingShot != null ? normalizePlayedShot(raw.pendingShot) : null,
+    pendingShot: raw.pendingShot != null ? normalizePlayedShot(raw.pendingShot, trajAtLog) : null,
   };
 }
 

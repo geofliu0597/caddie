@@ -41,13 +41,27 @@ export interface Conditions {
 /** Units for wind / temperature / altitude display. Metric is the default. */
 export type UnitsSystem = 'metric' | 'imperial';
 
+/**
+ * How much balls release after landing on the putting surface — set once per
+ * round, like temperature. Scales the release estimate the Numbers check
+ * subtracts from logged resting positions before comparing them to the
+ * arsenal (see RELEASE_SHARE in insights.ts).
+ */
+export type GreenFirmness = 'soft' | 'normal' | 'firm';
+
 // ---- played-shot log -------------------------------------------------------
 
 /** Where the ball finished, relative to the pin. */
 export type FinishTag = 'short' | 'atPin' | 'past';
 
-/** What the ball finished lying in — the situation the observation came from. */
-export type SituationTag = 'green' | 'fringe' | 'fairway' | 'rough' | 'other';
+/**
+ * Where the ball FINISHED (not the lie it was played from). 'green' = on or
+ * near the green — the carry-comparable finishes: the turf is known (the
+ * putting surface), so the analysis can estimate and subtract release.
+ * 'fairway'/'rough'/'other' roll an unknown amount over unknown turf and are
+ * excluded from the carry math in the Numbers check.
+ */
+export type SituationTag = 'green' | 'fairway' | 'rough' | 'other';
 
 /** Self-reported strike quality. Noisy mid-round — used for strike-rate stats, never for calibration math. */
 export type StrikeTag = 'flush' | 'solid' | 'mishit';
@@ -57,12 +71,17 @@ export type PlayedSource = 'course';
 /**
  * Raw post-shot observation. Only what is directly observable on course is
  * entered: where the ball STOPPED relative to the pin (laser, pacing, or the
- * next chip/putt length). Carry is derived in analysis — never entered —
- * because for shots that finish on/near the green, resting shortfall ≈ carry
- * shortfall (irons land steep and stop).
+ * next chip/putt length). Carry is derived in analysis — never entered — by
+ * subtracting an estimated release (trajectory × green firmness, fixed
+ * constants) from the resting travel.
  */
 export interface PlayedObservation {
-  /** Resting distance to the pin, yards. 0 = at pin. */
+  /**
+   * How far the ball finished past/short of the pin ALONG THE SHOT LINE — the
+   * over/under, not the diagonal laser reading when the ball is off-line
+   * (lateral misses are deliberately not captured: carry calibration needs
+   * only the along-line component). Yards. 0 = at pin.
+   */
   restingYd: number;
   finish: FinishTag;
   situation: SituationTag;
@@ -71,8 +90,8 @@ export interface PlayedObservation {
 
 /**
  * One logged attempt: the frozen pre-shot state plus the raw post-shot
- * observation. The golfer taps "Hitting this" before the shot (freezing the
- * snapshot) and records the result at their ball (~10 seconds).
+ * observation. The golfer taps a club suggestion before the shot (freezing
+ * the snapshot) and records the result at their ball (~10 seconds).
  */
 export interface PlayedShot {
   id: string;
@@ -88,6 +107,10 @@ export interface PlayedShot {
     tempF: number;
     courseAltFt: number;
     formPct: number;
+    /** Trajectory at log time — frozen like stockCarry so later arsenal edits can't rewrite history. Drives the release estimate. */
+    trajectory: Trajectory;
+    /** Green firmness at log time — the other half of the release estimate. */
+    greenFirmness: GreenFirmness;
   };
   /** Model output at shot time. Recomputable, but stored so later model changes can't rewrite history. */
   predicted: {
@@ -115,6 +138,8 @@ export interface Settings {
   formPct: number;
   /** Opt-in played-shot logging on the Play screen. Off by default — it must never add steps for golfers who don't want it. */
   logShots: boolean;
+  /** How much balls release after landing this round — Soft / Normal / Firm. Set once per round in Settings. */
+  greenFirmness: GreenFirmness;
 }
 
 export interface AppState {

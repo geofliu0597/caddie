@@ -10,8 +10,7 @@ const FINISH_OPTIONS: { v: FinishTag; label: string }[] = [
 ];
 
 const SITUATION_OPTIONS: { v: SituationTag; label: string }[] = [
-  { v: 'green', label: 'Green' },
-  { v: 'fringe', label: 'Fringe' },
+  { v: 'green', label: 'On green' },
   { v: 'fairway', label: 'Fairway' },
   { v: 'rough', label: 'Rough' },
   { v: 'other', label: 'Other' },
@@ -121,7 +120,7 @@ export function PendingShotCard() {
       {open && (
         <div className="space-y-3 px-4 pb-4 pt-1">
           <div>
-            <p className="text-sm font-medium text-turf-100">Pin distance now</p>
+            <p className="text-sm font-medium text-turf-100">Over / under the pin</p>
             {finish !== 'atPin' && (
               <div className="mt-1.5 flex items-center gap-2">
                 <input
@@ -130,7 +129,7 @@ export function PendingShotCard() {
                   value={rest}
                   onChange={(e) => setRest(e.target.value)}
                   placeholder="0"
-                  aria-label="Resting distance to the pin"
+                  aria-label="How far over or under the pin"
                   className="h-11 w-24 rounded-xl bg-turf-700 px-3 text-base font-semibold tabular-nums text-turf-50 outline-none focus:ring-2 focus:ring-lime-400/60"
                 />
                 <span className="text-sm text-turf-300">{u}</span>
@@ -144,13 +143,14 @@ export function PendingShotCard() {
               ))}
             </div>
             <p className="mt-1 text-xs text-turf-400">
-              Laser it, pace it off, or use your next chip/putt length — where the ball stopped, not
-              how far it flew.
+              How far over or under along your shot line — where the ball stopped, not how far it
+              flew. A laser is exact on line; off to the side, enter the over/under part, not the
+              diagonal reading. Chip/putt length works when you're roughly on line.
             </p>
           </div>
 
           <div>
-            <p className="text-sm font-medium text-turf-100">Lie</p>
+            <p className="text-sm font-medium text-turf-100">Ball finished in</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {SITUATION_OPTIONS.map((o) => (
                 <Chip key={o.v} selected={situation === o.v} onClick={() => setSituation(o.v)}>
